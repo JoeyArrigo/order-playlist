@@ -12,12 +12,14 @@ use playlistize::domain::{TrackFeatures, TrackId, TrackQuery};
 /// In-memory resolver for testing.
 ///
 /// Looks up queries in a provided HashMap and returns Unresolved if not found.
+#[allow(dead_code)]
 pub struct InMemoryResolver {
     pub map: HashMap<TrackQuery, TrackId>,
 }
 
 impl InMemoryResolver {
     /// Create a new InMemoryResolver from an iterator of (query, id) pairs.
+    #[allow(dead_code)]
     pub fn new(pairs: impl IntoIterator<Item = (TrackQuery, TrackId)>) -> Self {
         Self {
             map: pairs.into_iter().collect(),
@@ -62,12 +64,14 @@ impl Resolver for PanicOnCallResolver {
 ///
 /// Looks up track IDs in a provided HashMap and returns their features,
 /// or `None` if not found.
+#[allow(dead_code)]
 pub struct InMemoryFeatureSource {
     pub map: HashMap<TrackId, TrackFeatures>,
 }
 
 impl InMemoryFeatureSource {
     /// Create a new InMemoryFeatureSource from an iterator of (id, features) pairs.
+    #[allow(dead_code)]
     pub fn new(pairs: impl IntoIterator<Item = (TrackId, TrackFeatures)>) -> Self {
         Self {
             map: pairs.into_iter().collect(),

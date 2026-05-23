@@ -21,7 +21,7 @@ async fn in_memory_features_returns_known() {
         speechiness: Normalized::HALF,
     };
     let src = InMemoryFeatureSource::new([(id.clone(), f.clone())]);
-    let result = src.features_for(&[id.clone()]).await;
+    let result = src.features_for(std::slice::from_ref(&id)).await;
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].0, id);
     assert!(result[0].1.is_some());
