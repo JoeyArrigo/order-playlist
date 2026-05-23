@@ -24,6 +24,9 @@ pub use csv_io::{read_input, write_output, write_unresolved, Unresolved};
 #[cfg(feature = "musicbrainz")]
 pub use musicbrainz::MusicBrainzIsrcResolver;
 
+#[cfg(feature = "reccobeats")]
+pub use reccobeats::ReccoBeatsFeatures;
+
 /// Resolves track IDs to their audio features.
 ///
 /// Implementations must:
