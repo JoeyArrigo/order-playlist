@@ -9,3 +9,6 @@ pub mod algo;
 pub mod cli;
 pub mod domain;
 pub mod errors;
+pub mod run;
+
+pub use run::{run, ExitCode, RunDeps, RunReport};
