@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use playlistize::cli::ResolvedArgs;
-use playlistize::run::{run, RunDeps, ExitCode};
+use playlistize::run::{run, ExitCode, RunDeps};
 
 use support::in_memory::{PanicOnCallFeatureSource, PanicOnCallResolver};
 
@@ -31,10 +31,13 @@ async fn warm_cache_does_not_invoke_adapters() {
     // AC7.1: the panic-on-call adapters MUST NOT be invoked.
     // If `run` reaches into the resolver or feature_source,
     // the panic fails the test with a clear message.
-    let (exit, _report) = run(args, RunDeps {
-        resolver: Box::new(PanicOnCallResolver),
-        feature_source: Box::new(PanicOnCallFeatureSource),
-    })
+    let (exit, _report) = run(
+        args,
+        RunDeps {
+            resolver: Box::new(PanicOnCallResolver),
+            feature_source: Box::new(PanicOnCallFeatureSource),
+        },
+    )
     .await
     .unwrap();
 

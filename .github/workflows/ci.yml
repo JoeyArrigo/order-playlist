@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, playlist-arc-v1]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - "default"
+          - "--no-default-features --features musicbrainz,reccobeats"
+          - "--no-default-features --features musicbrainz"
+          - "--no-default-features --features reccobeats"
+          - "--no-default-features"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: fmt
+        run: cargo fmt --check
+        if: matrix.features == 'default'
+
+      - name: clippy
+        run: cargo clippy --all-targets ${{ matrix.features == 'default' && '' || matrix.features }} -- -D warnings
+        if: matrix.features != '--no-default-features'  # bare-bones has no targets to lint here
+
+      - name: build
+        run: cargo build ${{ matrix.features == 'default' && '' || matrix.features }}
+
+      - name: test
+        run: cargo test ${{ matrix.features == 'default' && '' || matrix.features }}
+        if: matrix.features != '--no-default-features'  # no tests without adapters

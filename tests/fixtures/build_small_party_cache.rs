@@ -2,9 +2,9 @@
 //! Run: `cargo run --bin build_small_party_cache`.
 //! The output is committed to the repo so `cargo test` is hermetic.
 
-use std::path::PathBuf;
 use playlistize::adapters::Cache;
 use playlistize::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
+use std::path::PathBuf;
 
 fn main() {
     let queries = [
@@ -22,7 +22,9 @@ fn main() {
 
     let path = PathBuf::from("tests/fixtures/small_party.cache.json");
     // Start fresh — explicitly overwrite the file rather than merging.
-    if path.exists() { std::fs::remove_file(&path).unwrap(); }
+    if path.exists() {
+        std::fs::remove_file(&path).unwrap();
+    }
     let mut cache = Cache::load(&path).unwrap();
 
     for (i, (title, artist)) in queries.iter().enumerate() {

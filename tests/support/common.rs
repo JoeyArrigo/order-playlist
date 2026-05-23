@@ -5,10 +5,11 @@ use tempfile::TempDir;
 
 use playlistize::adapters::Cache;
 use playlistize::cli::ResolvedArgs;
-use playlistize::run::{run, RunDeps, RunReport, ExitCode};
+use playlistize::run::{run, ExitCode, RunDeps, RunReport};
 
 use super::in_memory::{InMemoryFeatureSource, InMemoryResolver};
 
+#[allow(dead_code)]
 pub struct SmallPartyRun {
     pub dir: TempDir,
     pub output: PathBuf,
@@ -19,6 +20,7 @@ pub struct SmallPartyRun {
 
 /// Run the small_party fixture through the orchestration with the
 /// given seed, returning paths to the produced artifacts.
+#[allow(dead_code)]
 pub async fn run_small_party_with_seed(seed: u64) -> SmallPartyRun {
     run_small_party_with_seed_and_skip_and_window(seed, &[], 0).await
 }
@@ -26,6 +28,7 @@ pub async fn run_small_party_with_seed(seed: u64) -> SmallPartyRun {
 /// Same as above, but force the named queries to be unresolved by
 /// excluding them from both the cache and the in-memory resolver map.
 /// Used by AC5.2 tests to test determinism of unresolved.csv.
+#[allow(dead_code)]
 pub async fn run_small_party_with_seed_and_skip(seed: u64, skip_titles: &[&str]) -> SmallPartyRun {
     run_small_party_with_seed_and_skip_and_window(seed, skip_titles, 0).await
 }
@@ -43,7 +46,10 @@ pub async fn run_small_party_with_seed_and_skip_and_window(
     let cache_path = dir.path().join("cache.json");
 
     // Load the full cache to extract entries.
-    let full_cache = Cache::load(std::path::Path::new("tests/fixtures/small_party.cache.json")).unwrap();
+    let full_cache = Cache::load(std::path::Path::new(
+        "tests/fixtures/small_party.cache.json",
+    ))
+    .unwrap();
 
     // Build a filtered cache that excludes skipped titles.
     let mut filtered_cache = Cache::load(&cache_path).unwrap();
@@ -66,11 +72,8 @@ pub async fn run_small_party_with_seed_and_skip_and_window(
         .collect();
     let resolver = InMemoryResolver::new(resolver_pairs);
 
-    let features = InMemoryFeatureSource::new(
-        cache
-            .all_features()
-            .map(|(id, f)| (id.clone(), f.clone())),
-    );
+    let features =
+        InMemoryFeatureSource::new(cache.all_features().map(|(id, f)| (id.clone(), f.clone())));
 
     let args = ResolvedArgs {
         input,
@@ -84,10 +87,13 @@ pub async fn run_small_party_with_seed_and_skip_and_window(
         musicbrainz_contact: "test@example.com".into(),
     };
 
-    let (exit, report) = run(args, RunDeps {
-        resolver: Box::new(resolver),
-        feature_source: Box::new(features),
-    })
+    let (exit, report) = run(
+        args,
+        RunDeps {
+            resolver: Box::new(resolver),
+            feature_source: Box::new(features),
+        },
+    )
     .await
     .unwrap();
 

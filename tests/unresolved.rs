@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 use playlistize::cli::ResolvedArgs;
 use playlistize::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
-use playlistize::run::{run, RunDeps, ExitCode};
+use playlistize::run::{run, ExitCode, RunDeps};
 
 use support::in_memory::{InMemoryFeatureSource, InMemoryResolver};
 
@@ -17,13 +17,25 @@ async fn partial_unresolved_exits_zero_and_writes_sidecar() {
 
     // Resolver knows 5 of the 8 queries; the other 3 → Unresolved.
     let resolver = InMemoryResolver::new([
-        (TrackQuery::new("Get Lucky", "Daft Punk"), TrackId::new("FAKE001")),
-        (TrackQuery::new("Dancing Queen", "ABBA"), TrackId::new("FAKE002")),
-        (TrackQuery::new("Levitating", "Dua Lipa"), TrackId::new("FAKE003")),
-        (TrackQuery::new("One More Time", "Daft Punk"), TrackId::new("FAKE004")),
+        (
+            TrackQuery::new("Get Lucky", "Daft Punk"),
+            TrackId::new("FAKE001"),
+        ),
+        (
+            TrackQuery::new("Dancing Queen", "ABBA"),
+            TrackId::new("FAKE002"),
+        ),
+        (
+            TrackQuery::new("Levitating", "Dua Lipa"),
+            TrackId::new("FAKE003"),
+        ),
+        (
+            TrackQuery::new("One More Time", "Daft Punk"),
+            TrackId::new("FAKE004"),
+        ),
         (TrackQuery::new("SOS", "ABBA"), TrackId::new("FAKE005")),
     ]);
-let make_features = || TrackFeatures {
+    let make_features = || TrackFeatures {
         tempo: Bpm::new(120.0).unwrap(),
         key: PitchClass::new(0).unwrap(),
         mode: Mode::Major,
@@ -55,10 +67,13 @@ let make_features = || TrackFeatures {
         verbose: 0,
         musicbrainz_contact: "test@example.com".into(),
     };
-    let (exit, _report) = run(args, RunDeps {
-        resolver: Box::new(resolver),
-        feature_source: Box::new(features),
-    })
+    let (exit, _report) = run(
+        args,
+        RunDeps {
+            resolver: Box::new(resolver),
+            feature_source: Box::new(features),
+        },
+    )
     .await
     .unwrap();
 
@@ -95,10 +110,13 @@ async fn all_unresolved_exits_5() {
         verbose: 0,
         musicbrainz_contact: "test@example.com".into(),
     };
-    let (exit, _report) = run(args, RunDeps {
-        resolver: Box::new(resolver),
-        feature_source: Box::new(features),
-    })
+    let (exit, _report) = run(
+        args,
+        RunDeps {
+            resolver: Box::new(resolver),
+            feature_source: Box::new(features),
+        },
+    )
     .await
     .unwrap();
 

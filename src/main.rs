@@ -6,11 +6,14 @@
 //! `playlistize` binary entry point.
 
 use clap::Parser;
-use playlistize::adapters::{Cache, FeatureSource, Resolver};
+use playlistize::adapters::Cache;
 use playlistize::cli::Args;
 use playlistize::run::{run, RunDeps};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+#[cfg(all(feature = "musicbrainz", feature = "reccobeats"))]
+use playlistize::adapters::{FeatureSource, Resolver};
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {

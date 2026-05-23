@@ -1,7 +1,10 @@
 mod support;
 
 use playlistize::run::ExitCode;
-use support::common::{run_small_party_with_seed, run_small_party_with_seed_and_skip, run_small_party_with_seed_and_skip_and_window};
+use support::common::{
+    run_small_party_with_seed, run_small_party_with_seed_and_skip,
+    run_small_party_with_seed_and_skip_and_window,
+};
 
 #[tokio::test]
 async fn two_runs_same_seed_produce_byte_identical_output() {
@@ -35,7 +38,10 @@ async fn two_runs_same_seed_produce_byte_identical_unresolved() {
 
     let bytes_a = std::fs::read(&a.unresolved).unwrap();
     let bytes_b = std::fs::read(&b.unresolved).unwrap();
-    assert_eq!(bytes_a, bytes_b, "AC5.2: unresolved.csv must be byte-identical");
+    assert_eq!(
+        bytes_a, bytes_b,
+        "AC5.2: unresolved.csv must be byte-identical"
+    );
 }
 
 #[tokio::test]
