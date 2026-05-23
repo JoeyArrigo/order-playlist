@@ -6,19 +6,20 @@
 
 use crate::algo::cost::CostContext;
 use rand::{seq::SliceRandom, Rng};
-use rand_chacha::ChaCha20Rng;
 
 /// Helper to generate a random usize in the range [0, n)
 /// Note: uses modulo, which has negligible bias for n ≤ 100 (< 1 part in 4e7).
 #[inline]
-fn gen_range_usize(rng: &mut ChaCha20Rng, n: usize) -> usize {
+fn gen_range_usize<R: Rng + ?Sized>(rng: &mut R, n: usize) -> usize {
     let val = rng.next_u32() as usize;
     val % n
 }
 
 /// Helper to generate a random f32 in [0, 1)
+/// Note: (u32::MAX as f32 + 1.0) rounds to 2^32 in f32, so this divides by 2^32
+/// and produces values in [0, 1).
 #[inline]
-fn gen_f32(rng: &mut ChaCha20Rng) -> f32 {
+fn gen_f32<R: Rng + ?Sized>(rng: &mut R) -> f32 {
     let val = rng.next_u32();
     (val as f32) / (u32::MAX as f32 + 1.0)
 }
@@ -63,11 +64,11 @@ impl Default for AnnealConfig {
 /// `ctx`, identical `AnnealConfig`, and the same `R` state, repeated calls
 /// produce identical output. Use `ChaCha20Rng::seed_from_u64(seed)` to get
 /// a reproducible `R`.
-pub fn optimize(
+pub fn optimize<R: Rng + ?Sized>(
     initial: Vec<usize>,
     ctx: &CostContext<'_>,
     config: &AnnealConfig,
-    rng: &mut ChaCha20Rng,
+    rng: &mut R,
 ) -> Vec<usize> {
     let n = initial.len();
     if n == 0 {
@@ -79,6 +80,7 @@ pub fn optimize(
     //    exp(-mean_positive_delta / T₀) ≈ pilot_target_acceptance.
     //    Concretely: T₀ = -mean_positive_delta / ln(pilot_target_acceptance).
     let mut positive_deltas = Vec::new();
+    let mut pilot_buf = initial.clone();
 
     for _ in 0..config.pilot_iterations {
         // Sample two different random indices
@@ -89,8 +91,7 @@ pub fn optimize(
                 break x;
             }
         };
-        let mut initial_copy = initial.clone();
-        let delta = ctx.delta_cost(&mut initial_copy, a, b);
+        let delta = ctx.delta_cost(&mut pilot_buf, a, b);
         if delta > 0.0 {
             positive_deltas.push(delta);
         }

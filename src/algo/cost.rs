@@ -39,9 +39,8 @@ impl Default for CostWeights {
             energy_jump: 0.5,
             // Heavy weight so SA naturally pushes clashes out of view.
             // Must be at least 10× the arc term to dominate at SA's
-            // typical temperatures. Bumped to 500.0 to enforce strict
-            // zero-clash invariant over 20-track inputs with 4 artists.
-            artist_clash: 500.0,
+            // typical temperatures. Default 50.0 with window=4.
+            artist_clash: 50.0,
             artist_window: 4,
         }
     }
@@ -234,7 +233,7 @@ mod tests {
         assert_eq!(weights.camelot_distance, 0.3);
         assert_eq!(weights.tempo_delta, 0.02);
         assert_eq!(weights.energy_jump, 0.5);
-        assert_eq!(weights.artist_clash, 500.0);
+        assert_eq!(weights.artist_clash, 50.0);
         assert_eq!(weights.artist_window, 4);
     }
 
