@@ -54,13 +54,17 @@ fn raw_target(t: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::{proptest, prelude::*};
+    use proptest::{prelude::*, proptest};
 
     #[test]
     fn target_peak_fallback_above_threshold() {
         let arc = EnergyArc;
         let peak_n1 = arc.target(0, 1).get();
-        assert!(peak_n1 > 0.8, "peak at n=1 should be > 0.8, got {}", peak_n1);
+        assert!(
+            peak_n1 > 0.8,
+            "peak at n=1 should be > 0.8, got {}",
+            peak_n1
+        );
     }
 
     #[test]

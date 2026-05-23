@@ -73,8 +73,7 @@ impl<'a> CostContext<'a> {
         // Arc deviation per position
         for (pos, &track_idx) in ordering.iter().enumerate() {
             let energy = self.tracks[track_idx].features.energy;
-            cost += self.weights.arc_deviation
-                * self.arc.deviation_cost(pos, n, energy);
+            cost += self.weights.arc_deviation * self.arc.deviation_cost(pos, n, energy);
         }
 
         // Pairwise terms for adjacent pairs (distance-1)
@@ -160,8 +159,7 @@ impl<'a> CostContext<'a> {
         for (i, &track_idx) in ordering[start..clamped_end].iter().enumerate() {
             let pos = start + i;
             let energy = self.tracks[track_idx].features.energy;
-            cost += self.weights.arc_deviation
-                * self.arc.deviation_cost(pos, n, energy);
+            cost += self.weights.arc_deviation * self.arc.deviation_cost(pos, n, energy);
         }
 
         // Pairwise distance-1 terms where at least one endpoint is in range
@@ -210,8 +208,8 @@ impl<'a> CostContext<'a> {
             self.weights.camelot_distance * self.camelot_table.distance(camelot_i, camelot_j);
         let tempo_cost = self.weights.tempo_delta
             * (track_i.features.tempo.get() - track_j.features.tempo.get()).abs();
-        let energy_cost =
-            self.weights.energy_jump * (track_i.features.energy.get() - track_j.features.energy.get()).abs();
+        let energy_cost = self.weights.energy_jump
+            * (track_i.features.energy.get() - track_j.features.energy.get()).abs();
 
         camelot_cost + tempo_cost + energy_cost
     }
@@ -223,14 +221,11 @@ mod test_support {
     use crate::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
 
     /// Build n deterministic Tracks with seeded random features.
-    pub fn synthetic_tracks(n: usize, seed: u64) -> Vec<Track> {
+    pub(crate) fn synthetic_tracks(n: usize, seed: u64) -> Vec<Track> {
         let mut tracks = Vec::with_capacity(n);
 
         for i in 0..n {
-            let query = TrackQuery::new(
-                format!("Track {}", i),
-                format!("Artist {}", i),
-            );
+            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", i));
             let id = TrackId::new(format!("id-{}", i));
 
             let mut features = TrackFeatures::neutral();
@@ -261,15 +256,16 @@ mod test_support {
     /// Build n synthetic tracks with specific artists distributed round-robin.
     /// Used in Phase 3D's artist-spacing property test.
     #[allow(dead_code)]
-    pub fn synthetic_tracks_with_artists(n: usize, n_artists: usize, seed: u64) -> Vec<Track> {
+    pub(crate) fn synthetic_tracks_with_artists(
+        n: usize,
+        n_artists: usize,
+        seed: u64,
+    ) -> Vec<Track> {
         let mut tracks = Vec::with_capacity(n);
 
         for i in 0..n {
             let artist_idx = i % n_artists;
-            let query = TrackQuery::new(
-                format!("Track {}", i),
-                format!("Artist {}", artist_idx),
-            );
+            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", artist_idx));
             let id = TrackId::new(format!("id-{}", i));
 
             let mut features = TrackFeatures::neutral();
@@ -350,7 +346,8 @@ mod tests {
         let cost = ctx.total_cost(&ordering);
 
         // Should only have arc deviation, no pairwise or artist terms
-        let expected = ctx.weights.arc_deviation * ctx.arc.deviation_cost(0, 1, tracks[0].features.energy);
+        let expected =
+            ctx.weights.arc_deviation * ctx.arc.deviation_cost(0, 1, tracks[0].features.energy);
         assert!((cost - expected).abs() < 1e-5);
     }
 
