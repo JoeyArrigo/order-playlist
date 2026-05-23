@@ -7,8 +7,9 @@ use crate::domain::{Bpm, Mode, Normalized, PitchClass};
 use serde::{Deserialize, Serialize};
 
 /// A search query for a track (title + artist).
-/// Derives `Hash` and `Eq` because Phase 4's cache uses `HashMap<TrackQuery, TrackId>`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Derives `Hash` and `Eq` because Phase 4's cache uses `BTreeMap<TrackQuery, TrackId>` for deterministic serialization.
+/// `Ord` is implemented to provide a total order by (title, artist).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct TrackQuery {
     /// The track title (trimmed of leading/trailing whitespace).
     pub title: String,
@@ -28,7 +29,8 @@ impl TrackQuery {
 
 /// An opaque track identifier (e.g., ISRC, Spotify ID).
 /// The inner field is `pub(crate)` so downstream modules cannot pattern-match on it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// `Ord` is implemented to provide a total order by the underlying string for use in BTreeMap.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct TrackId(pub(crate) String);
 
 impl TrackId {

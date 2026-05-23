@@ -6,7 +6,11 @@
 //! a new feature flag and a new impl; nothing in `algo/` or `domain/`
 //! should change.
 
+pub mod cache;
 pub mod csv_io;
 
-// Submodules added in later phases: cache (Phase 4),
-// musicbrainz (Phase 5), reccobeats (Phase 6).
+// Re-exports of core adapter functions (Task 8 re-export level; traits land in Phase 5/6).
+pub use cache::{Cache, CacheFile, CACHE_VERSION};
+pub use csv_io::{read_input, write_output, write_unresolved, Unresolved};
+
+// Submodules added in later phases: musicbrainz (Phase 5), reccobeats (Phase 6).
