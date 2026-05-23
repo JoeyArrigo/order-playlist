@@ -1,13 +1,13 @@
-//! In-memory `Resolver` test double.
+//! In-memory test doubles for `Resolver` and `FeatureSource`.
 //!
 //! Used by Phase 7's integration tests to exercise the pipeline without
-//! touching the network. The double also includes `PanicOnCallResolver`
+//! touching the network. The doubles also include panic-on-call variants
 //! to prove the warm-cache path issues zero network calls.
 
 use std::collections::HashMap;
 
-use playlistize::adapters::{Resolution, Resolver};
-use playlistize::domain::{TrackId, TrackQuery};
+use playlistize::adapters::{FeatureSource, Resolution, Resolver};
+use playlistize::domain::{TrackFeatures, TrackId, TrackQuery};
 
 /// In-memory resolver for testing.
 ///
@@ -55,5 +55,45 @@ pub struct PanicOnCallResolver;
 impl Resolver for PanicOnCallResolver {
     async fn resolve_many(&self, _queries: &[TrackQuery]) -> Vec<Resolution> {
         panic!("PanicOnCallResolver was invoked — this should not happen on a warm-cache path");
+    }
+}
+
+/// In-memory feature source for testing.
+///
+/// Looks up track IDs in a provided HashMap and returns their features,
+/// or `None` if not found.
+pub struct InMemoryFeatureSource {
+    pub map: HashMap<TrackId, TrackFeatures>,
+}
+
+impl InMemoryFeatureSource {
+    /// Create a new InMemoryFeatureSource from an iterator of (id, features) pairs.
+    pub fn new(pairs: impl IntoIterator<Item = (TrackId, TrackFeatures)>) -> Self {
+        Self {
+            map: pairs.into_iter().collect(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl FeatureSource for InMemoryFeatureSource {
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)> {
+        ids.iter()
+            .map(|id| (id.clone(), self.map.get(id).cloned()))
+            .collect()
+    }
+}
+
+/// Panic-on-call feature source for testing warm-cache paths.
+///
+/// Panics if features_for is called, ensuring that cache warm paths
+/// never invoke the feature source at all.
+#[allow(dead_code)]
+pub struct PanicOnCallFeatureSource;
+
+#[async_trait::async_trait]
+impl FeatureSource for PanicOnCallFeatureSource {
+    async fn features_for(&self, _ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)> {
+        panic!("PanicOnCallFeatureSource was invoked — warm cache should bypass this");
     }
 }
