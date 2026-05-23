@@ -48,6 +48,7 @@ impl TrackId {
 }
 
 /// Numeric audio features extracted from a track (ReccoBeats or equivalent).
+/// `PartialEq` derived for round-trip serialization tests; bitwise f32 equality is acceptable for constant fixtures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackFeatures {
     /// Tempo in beats per minute.
@@ -96,6 +97,7 @@ impl TrackFeatures {
 }
 
 /// A fully-resolved track: query + ID + audio features.
+/// `PartialEq` derived for round-trip serialization tests; bitwise f32 equality is acceptable for constant fixtures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Track {
     /// The search query used to find this track.

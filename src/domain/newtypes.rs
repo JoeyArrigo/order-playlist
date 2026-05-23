@@ -33,7 +33,8 @@ impl Bpm {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # use playlistize::domain::Bpm;
     /// assert!(Bpm::new(120.5).is_ok());
     /// assert!(Bpm::new(0.0).is_err());
     /// assert!(Bpm::new(f32::NAN).is_err());
@@ -64,7 +65,8 @@ impl PitchClass {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # use playlistize::domain::PitchClass;
     /// assert!(PitchClass::new(0).is_ok());   // C
     /// assert!(PitchClass::new(11).is_ok());  // B
     /// assert!(PitchClass::new(12).is_err());
@@ -118,7 +120,8 @@ impl Normalized {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # use playlistize::domain::Normalized;
     /// assert_eq!(Normalized::clamp(0.5).get(), 0.5);
     /// assert_eq!(Normalized::clamp(-1.0).get(), 0.0);  // warns
     /// assert_eq!(Normalized::clamp(2.0).get(), 1.0);   // warns
@@ -144,7 +147,8 @@ impl Normalized {
     ///
     /// # Examples
     ///
-    /// ```ignore
+    /// ```
+    /// # use playlistize::domain::Normalized;
     /// assert!(Normalized::try_new(0.5).is_ok());
     /// assert!(Normalized::try_new(-0.001).is_err());
     /// assert!(Normalized::try_new(1.001).is_err());
