@@ -1,0 +1,17 @@
+---
+source: src/cli/report.rs
+expression: format_summary(&s)
+---
+Summary
+  resolved:     38
+  unresolved:    2  (see unresolved.csv)
+  seed:        42 (supplied)
+  total cost:  before   12.345    after    7.891
+  arc dev:     before    8.000    after    4.123
+  cost terms (after):
+    arc           4.123
+    camelot       1.234
+    tempo         0.567
+    energy        0.890
+    artist        1.077
+  artist clashes remaining: 0
