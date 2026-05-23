@@ -123,7 +123,13 @@ impl<'a> CostContext<'a> {
             }
         }
 
-        CostBreakdown { arc, camelot, tempo, energy, artist }
+        CostBreakdown {
+            arc,
+            camelot,
+            tempo,
+            energy,
+            artist,
+        }
     }
 
     /// Full cost over `ordering[..]`.

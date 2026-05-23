@@ -21,12 +21,15 @@ async fn main() -> miette::Result<()> {
     init_tracing(args.verbose);
 
     if !args.seed_was_supplied {
-        tracing::info!(seed = args.seed, "no --seed supplied; derived from system time");
+        tracing::info!(
+            seed = args.seed,
+            "no --seed supplied; derived from system time"
+        );
     }
 
     let cache_path = args.cache.clone();
     let cache = Arc::new(Mutex::new(
-        Cache::load(&cache_path).map_err(miette::Report::new)?
+        Cache::load(&cache_path).map_err(miette::Report::new)?,
     ));
 
     let deps = build_deps(&args, cache.clone())?;
@@ -58,22 +61,33 @@ fn init_tracing(verbose: u8) {
 
 /// Construct the resolver + feature source based on enabled Cargo features.
 /// AC8.3: when no provider feature is enabled, emit a clear error.
-fn build_deps(args: &playlistize::cli::ResolvedArgs, cache: Arc<Mutex<Cache>>) -> miette::Result<RunDeps> {
+fn build_deps(
+    args: &playlistize::cli::ResolvedArgs,
+    cache: Arc<Mutex<Cache>>,
+) -> miette::Result<RunDeps> {
     #[cfg(all(feature = "musicbrainz", feature = "reccobeats"))]
     {
         let resolver = Box::new(
             playlistize::adapters::MusicBrainzIsrcResolver::new(
                 cache.clone(),
-                format!("playlistize/{} ({})", env!("CARGO_PKG_VERSION"), args.musicbrainz_contact),
-            ).map_err(|e| miette::miette!("failed to build MusicBrainz client: {e}"))?
+                format!(
+                    "playlistize/{} ({})",
+                    env!("CARGO_PKG_VERSION"),
+                    args.musicbrainz_contact
+                ),
+            )
+            .map_err(|e| miette::miette!("failed to build MusicBrainz client: {e}"))?,
         ) as Box<dyn Resolver>;
 
         let feature_source = Box::new(
             playlistize::adapters::ReccoBeatsFeatures::new(cache.clone())
-                .map_err(|e| miette::miette!("failed to build ReccoBeats client: {e}"))?
+                .map_err(|e| miette::miette!("failed to build ReccoBeats client: {e}"))?,
         ) as Box<dyn FeatureSource>;
 
-        return Ok(RunDeps { resolver, feature_source });
+        Ok(RunDeps {
+            resolver,
+            feature_source,
+        })
     }
 
     #[cfg(not(all(feature = "musicbrainz", feature = "reccobeats")))]

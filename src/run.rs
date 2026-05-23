@@ -8,15 +8,19 @@
 //! Exposed to integration tests so the pipeline can be exercised with
 //! `InMemoryResolver` + `InMemoryFeatureSource` (or `PanicOnCall*` doubles).
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use rand::SeedableRng;
 use rand_chacha::ChaCha20Rng;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use crate::adapters::{Cache, FeatureSource, Resolution, Resolver};
 use crate::adapters::{read_input, write_output, write_unresolved, Unresolved};
+use crate::adapters::{Cache, FeatureSource, Resolution, Resolver};
 use crate::algo::{optimize, AnnealConfig, CamelotTable, CostContext, CostWeights, EnergyArc};
-use crate::cli::{ResolvedArgs, format_summary, render_arc, report::{SummaryInputs, count_artist_clashes}};
+use crate::cli::{
+    format_summary, render_arc,
+    report::{count_artist_clashes, SummaryInputs},
+    ResolvedArgs,
+};
 use crate::domain::{Track, TrackId, TrackQuery};
 
 /// Semantic exit codes (per design).
@@ -46,14 +50,17 @@ pub struct RunReport {
     pub message: String,
 }
 
-pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunReport), miette::Report> {
+pub async fn run(
+    args: ResolvedArgs,
+    deps: RunDeps,
+) -> Result<(ExitCode, RunReport), miette::Report> {
     // 1. Read input.
     let queries = read_input(&args.input).map_err(miette::Report::new)?;
     tracing::info!(count = queries.len(), input = %args.input.display(), "loaded input");
 
     // 2. Load cache.
     let cache = Arc::new(Mutex::new(
-        Cache::load(&args.cache).map_err(miette::Report::new)?
+        Cache::load(&args.cache).map_err(miette::Report::new)?,
     ));
 
     // 3. AC7.1: Partition queries against the cache BEFORE calling the resolver.
@@ -70,7 +77,10 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
                 Some(id) if !id.get().is_empty() => resolved_pairs.push((q, id.clone())),
                 Some(_) => {
                     tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: cached prior failure");
-                    unresolved.push(Unresolved { query: q, reason: "cached: no ISRC on prior run".into() });
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "cached: no ISRC on prior run".into(),
+                    });
                 }
                 None => to_resolve.push(q),
             }
@@ -98,7 +108,11 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
         let cache_lock = cache.lock().await;
         for (q, id) in resolved_pairs {
             match cache_lock.get_features(&id) {
-                Some(f) => tracks.push(Track { query: q, id, features: f.clone() }),
+                Some(f) => tracks.push(Track {
+                    query: q,
+                    id,
+                    features: f.clone(),
+                }),
                 None => {
                     pending.push((q, id.clone()));
                     to_fetch.push(id);
@@ -112,10 +126,17 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
         // `fetched` is in the same order as `to_fetch`; zip with `pending`.
         for ((q, id), (_, feat)) in pending.into_iter().zip(fetched) {
             match feat {
-                Some(f) => tracks.push(Track { query: q, id, features: f }),
+                Some(f) => tracks.push(Track {
+                    query: q,
+                    id,
+                    features: f,
+                }),
                 None => {
                     tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature lookup returned None");
-                    unresolved.push(Unresolved { query: q, reason: "feature lookup returned None".into() });
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "feature lookup returned None".into(),
+                    });
                 }
             }
         }
@@ -136,15 +157,21 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
 
     // 7. Bail out if nothing resolved (AC4.4). `main.rs` formats the message.
     if tracks.is_empty() {
-        return Ok((ExitCode::NothingResolved, RunReport {
-            message: "no tracks resolved; nothing to anneal".into(),
-        }));
+        return Ok((
+            ExitCode::NothingResolved,
+            RunReport {
+                message: "no tracks resolved; nothing to anneal".into(),
+            },
+        ));
     }
 
     // 8. Anneal.
     let ctx = CostContext {
         tracks: &tracks,
-        weights: CostWeights { artist_window: args.artist_window, ..Default::default() },
+        weights: CostWeights {
+            artist_window: args.artist_window,
+            ..Default::default()
+        },
         arc: EnergyArc,
         camelot_table: CamelotTable::new(),
     };
@@ -171,8 +198,10 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
         unresolved_path: &args.unresolved,
         seed: args.seed,
         seed_was_supplied: args.seed_was_supplied,
-        before_cost, after_cost,
-        before_arc_dev, after_arc_dev,
+        before_cost,
+        after_cost,
+        before_arc_dev,
+        after_arc_dev,
         cost_breakdown: breakdown,
         remaining_clashes: count_artist_clashes(&tracks, &ordering, args.artist_window),
     });
@@ -184,7 +213,9 @@ pub async fn run(args: ResolvedArgs, deps: RunDeps) -> Result<(ExitCode, RunRepo
 fn compute_arc_dev(tracks: &[Track], ordering: &[usize]) -> f32 {
     let arc = EnergyArc;
     let n = ordering.len();
-    ordering.iter().enumerate()
+    ordering
+        .iter()
+        .enumerate()
         .map(|(i, &idx)| arc.deviation_cost(i, n, tracks[idx].features.energy))
         .sum()
 }
