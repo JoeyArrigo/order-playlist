@@ -18,10 +18,10 @@
 //! Both `key` and `mode` are present in the actual API (contrary to design research).
 //! No fallback to uniform costs needed — the full Camelot distance term is usable.
 
+use reqwest::Client;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use reqwest::Client;
 
 use crate::adapters::{Cache, FeatureSource};
 use crate::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId};
@@ -117,9 +117,7 @@ impl ReccoBeatsFeatures {
 
     /// Construct a feature source with a custom base URL (for testing).
     pub fn new_with_base(cache: Arc<Mutex<Cache>>, base: String) -> Result<Self, reqwest::Error> {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()?;
+        let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
         Ok(Self {
             client,
             cache,
@@ -297,9 +295,14 @@ impl ReccoBeatsFeatures {
         for attempt in 0..=self.retry_attempts {
             match self.fetch_once(url).await {
                 Ok(items) => return Ok(items),
-                Err(e) if matches!(e.kind, ReccoBeatsErrorKind::Throttled) && attempt < self.retry_attempts => {
+                Err(e)
+                    if matches!(e.kind, ReccoBeatsErrorKind::Throttled)
+                        && attempt < self.retry_attempts =>
+                {
                     // Exponential backoff: base * 2^(attempt+1).
-                    let backoff = self.retry_backoff_base.mul_f32(2f32.powi(attempt as i32 + 1));
+                    let backoff = self
+                        .retry_backoff_base
+                        .mul_f32(2f32.powi(attempt as i32 + 1));
                     tracing::info!(
                         attempt = attempt + 1,
                         backoff_ms = backoff.as_millis(),
@@ -323,13 +326,16 @@ impl ReccoBeatsFeatures {
 
     /// Fetch features once without retry.
     async fn fetch_once(&self, url: &str) -> Result<Vec<FeatureItem>, ReccoBeatsError> {
-        let resp = self.client.get(url).send().await.map_err(|e| {
-            ReccoBeatsError {
+        let resp = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| ReccoBeatsError {
                 kind: ReccoBeatsErrorKind::Network,
                 ids: Vec::new(),
                 source: Some(e),
-            }
-        })?;
+            })?;
 
         if resp.status().as_u16() == 429 {
             return Err(ReccoBeatsError {
@@ -365,8 +371,14 @@ mod tests {
             "https://api.reccobeats.com/v1",
             &["AAA111111111", "BBB222222222"],
         );
-        assert!(url.contains("ids=AAA111111111"), "first ID should be in URL");
-        assert!(url.contains("ids=BBB222222222"), "second ID should be in URL");
+        assert!(
+            url.contains("ids=AAA111111111"),
+            "first ID should be in URL"
+        );
+        assert!(
+            url.contains("ids=BBB222222222"),
+            "second ID should be in URL"
+        );
         assert!(url.contains("&"), "IDs should be joined with ampersand");
         assert!(
             url.starts_with("https://api.reccobeats.com/v1/audio-features?"),
@@ -377,7 +389,10 @@ mod tests {
     #[test]
     fn build_batch_url_url_encodes_ids() {
         let url = build_batch_url("https://api.reccobeats.com/v1", &["ID with spaces"]);
-        assert!(url.contains("ID%20with%20spaces"), "spaces should be URL-encoded");
+        assert!(
+            url.contains("ID%20with%20spaces"),
+            "spaces should be URL-encoded"
+        );
     }
 
     #[test]
@@ -428,10 +443,7 @@ mod tests {
 
     #[test]
     fn match_item_to_id_by_isrc_case_insensitive() {
-        let ids = vec![
-            TrackId::new("USQX91300120"),
-            TrackId::new("USQX91100008"),
-        ];
+        let ids = vec![TrackId::new("USQX91300120"), TrackId::new("USQX91100008")];
         let item = FeatureItem {
             isrc: Some("usqx91300120".into()), // lowercase
             ..Default::default()
@@ -529,10 +541,7 @@ mod integration_tests {
             .await;
 
         let src = make_features(&mock).await;
-        let ids = vec![
-            TrackId::new("USQX91300120"),
-            TrackId::new("USQX91100008"),
-        ];
+        let ids = vec![TrackId::new("USQX91300120"), TrackId::new("USQX91100008")];
         let result = src.features_for(&ids).await;
         assert_eq!(result.len(), 2, "should return two results");
         assert!(
@@ -556,13 +565,9 @@ mod integration_tests {
         ));
         {
             let mut c = cache.lock().await;
-            c.put_features(
-                TrackId::new("USQX91300120"),
-                TrackFeatures::neutral(),
-            );
+            c.put_features(TrackId::new("USQX91300120"), TrackFeatures::neutral());
         }
-        let src =
-            ReccoBeatsFeatures::new_with_base(cache, format!("{}/v1", mock.uri())).unwrap();
+        let src = ReccoBeatsFeatures::new_with_base(cache, format!("{}/v1", mock.uri())).unwrap();
         let ids = vec![TrackId::new("USQX91300120")];
         let result = src.features_for(&ids).await;
         assert!(result[0].1.is_some(), "cached ID should return Some");
@@ -593,10 +598,7 @@ mod integration_tests {
         src.retry_attempts = 1;
         let ids = vec![TrackId::new("USQX91300120")];
         let result = src.features_for(&ids).await;
-        assert!(
-            result[0].1.is_some(),
-            "expected feature after retry on 429"
-        );
+        assert!(result[0].1.is_some(), "expected feature after retry on 429");
     }
 
     #[tokio::test]
