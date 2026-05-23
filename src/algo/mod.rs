@@ -7,6 +7,8 @@
 
 pub mod arc;
 pub mod camelot;
+pub mod cost;
 
 pub use arc::EnergyArc;
 pub use camelot::CamelotTable;
+pub use cost::{CostContext, CostWeights};
