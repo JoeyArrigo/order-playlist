@@ -22,6 +22,21 @@ pub fn read_input(path: &Path) -> Result<Vec<TrackQuery>, InputError> {
         });
     }
 
+    // Check for zero-byte file early; empty file is a Csv error, not MissingColumn.
+    if std::fs::metadata(path)
+        .map(|m| m.len() == 0)
+        .unwrap_or(false)
+    {
+        return Err(InputError::Csv {
+            line: 0,
+            message: "empty input file (no header)".to_string(),
+            source: csv::Error::from(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "empty input file",
+            )),
+        });
+    }
+
     let mut rdr = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_path(path)
@@ -122,10 +137,7 @@ pub fn write_output(path: &Path, ordering: &[usize], tracks: &[Track]) -> Result
 
     let mut wtr = csv::WriterBuilder::new()
         .from_path(path)
-        .map_err(|e| InputError::Io {
-            path: path.to_path_buf(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
+        .map_err(|e| map_csv_write_err(path, e))?;
 
     wtr.write_record([
         "position",
@@ -140,10 +152,7 @@ pub fn write_output(path: &Path, ordering: &[usize], tracks: &[Track]) -> Result
         "loudness",
         "isrc",
     ])
-    .map_err(|e| InputError::Io {
-        path: path.to_path_buf(),
-        source: std::io::Error::other(e.to_string()),
-    })?;
+    .map_err(|e| map_csv_write_err(path, e))?;
 
     for (pos, &idx) in ordering.iter().enumerate() {
         let t = &tracks[idx];
@@ -164,10 +173,7 @@ pub fn write_output(path: &Path, ordering: &[usize], tracks: &[Track]) -> Result
             format!("{:.2}", f.loudness),
             t.id.get().to_string(),
         ])
-        .map_err(|e| InputError::Io {
-            path: path.to_path_buf(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
+        .map_err(|e| map_csv_write_err(path, e))?;
     }
 
     wtr.flush().map_err(|e| InputError::Io {
@@ -204,16 +210,10 @@ pub fn write_unresolved(path: &Path, unresolved: &[Unresolved]) -> Result<(), In
 
     let mut wtr = csv::WriterBuilder::new()
         .from_path(path)
-        .map_err(|e| InputError::Io {
-            path: path.to_path_buf(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
+        .map_err(|e| map_csv_write_err(path, e))?;
 
     wtr.write_record(["title", "artist", "reason"])
-        .map_err(|e| InputError::Io {
-            path: path.to_path_buf(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
+        .map_err(|e| map_csv_write_err(path, e))?;
 
     for u in unresolved {
         wtr.write_record([
@@ -221,10 +221,7 @@ pub fn write_unresolved(path: &Path, unresolved: &[Unresolved]) -> Result<(), In
             u.query.artist.clone(),
             u.reason.clone(),
         ])
-        .map_err(|e| InputError::Io {
-            path: path.to_path_buf(),
-            source: std::io::Error::other(e.to_string()),
-        })?;
+        .map_err(|e| map_csv_write_err(path, e))?;
     }
 
     wtr.flush().map_err(|e| InputError::Io {
@@ -238,6 +235,14 @@ pub fn write_unresolved(path: &Path, unresolved: &[Unresolved]) -> Result<(), In
 /// Helper: find a column by name (case-insensitive).
 fn find_column(headers: &csv::StringRecord, name: &str) -> Option<usize> {
     headers.iter().position(|h| h.eq_ignore_ascii_case(name))
+}
+
+/// Helper: map csv::Error from write operations to InputError::Io.
+fn map_csv_write_err(path: &Path, e: csv::Error) -> InputError {
+    InputError::Io {
+        path: path.to_path_buf(),
+        source: std::io::Error::other(e.to_string()),
+    }
 }
 
 #[cfg(test)]
@@ -323,8 +328,8 @@ mod tests {
         std::fs::write(temp.path(), b"").expect("write temp");
 
         let result = read_input(temp.path());
-        // Empty file is parsed as header with zero columns, triggering MissingColumn
-        assert!(matches!(result, Err(InputError::MissingColumn { .. })));
+        // Empty file fails to parse header, returns InputError::Csv
+        assert!(matches!(result, Err(InputError::Csv { .. })));
     }
 
     #[test]
