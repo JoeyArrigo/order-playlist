@@ -1,5 +1,6 @@
 /target
 *.cache.json
+!tests/fixtures/*.cache.json
 .env
 .DS_Store
 

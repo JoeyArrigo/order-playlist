@@ -9,6 +9,11 @@ publish = false
 name = "playlistize"
 path = "src/main.rs"
 
+[[bin]]
+name = "build_small_party_cache"
+path = "tests/fixtures/build_small_party_cache.rs"
+required-features = []
+
 [features]
 default = ["musicbrainz", "reccobeats"]
 musicbrainz = []

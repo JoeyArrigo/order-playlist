@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "resolutions": [
+    [
+      {
+        "title": "Around the World",
+        "artist": "Daft Punk"
+      },
+      "FAKE000000004"
+    ],
+    [
+      {
+        "title": "Dancing Queen",
+        "artist": "ABBA"
+      },
+      "FAKE000000006"
+    ],
+    [
+      {
+        "title": "Don't Start Now",
+        "artist": "Dua Lipa"
+      },
+      "FAKE000000010"
+    ],
+    [
+      {
+        "title": "Get Lucky",
+        "artist": "Daft Punk"
+      },
+      "FAKE000000001"
+    ],
+    [
+      {
+        "title": "Harder Better Faster Stronger",
+        "artist": "Daft Punk"
+      },
+      "FAKE000000003"
+    ],
+    [
+      {
+        "title": "Levitating",
+        "artist": "Dua Lipa"
+      },
+      "FAKE000000009"
+    ],
+    [
+      {
+        "title": "Mamma Mia",
+        "artist": "ABBA"
+      },
+      "FAKE000000007"
+    ],
+    [
+      {
+        "title": "One More Time",
+        "artist": "Daft Punk"
+      },
+      "FAKE000000002"
+    ],
+    [
+      {
+        "title": "SOS",
+        "artist": "ABBA"
+      },
+      "FAKE000000008"
+    ],
+    [
+      {
+        "title": "Take a Chance on Me",
+        "artist": "ABBA"
+      },
+      "FAKE000000005"
+    ]
+  ],
+  "features": {
+    "FAKE000000001": {
+      "tempo": 110.0,
+      "key": 0,
+      "mode": "major",
+      "energy": 0.3,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000002": {
+      "tempo": 115.0,
+      "key": 1,
+      "mode": "minor",
+      "energy": 0.36,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000003": {
+      "tempo": 120.0,
+      "key": 2,
+      "mode": "major",
+      "energy": 0.42000002,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000004": {
+      "tempo": 125.0,
+      "key": 3,
+      "mode": "minor",
+      "energy": 0.48000002,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000005": {
+      "tempo": 130.0,
+      "key": 4,
+      "mode": "major",
+      "energy": 0.54,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000006": {
+      "tempo": 135.0,
+      "key": 5,
+      "mode": "minor",
+      "energy": 0.6,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000007": {
+      "tempo": 140.0,
+      "key": 6,
+      "mode": "major",
+      "energy": 0.65999997,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000008": {
+      "tempo": 145.0,
+      "key": 7,
+      "mode": "minor",
+      "energy": 0.72,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000009": {
+      "tempo": 150.0,
+      "key": 8,
+      "mode": "major",
+      "energy": 0.78,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    },
+    "FAKE000000010": {
+      "tempo": 155.0,
+      "key": 9,
+      "mode": "minor",
+      "energy": 0.84,
+      "danceability": 0.5,
+      "valence": 0.5,
+      "loudness": -10.0,
+      "acousticness": 0.2,
+      "instrumentalness": 0.05,
+      "liveness": 0.1,
+      "speechiness": 0.05
+    }
+  }
+}
