@@ -48,7 +48,6 @@ impl TrackId {
 }
 
 /// Numeric audio features extracted from a track (ReccoBeats or equivalent).
-/// Detailed implementation in Task 4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackFeatures {
     /// Tempo in beats per minute.
@@ -73,6 +72,27 @@ pub struct TrackFeatures {
     pub liveness: Normalized,
     /// Speechiness [0.0, 1.0].
     pub speechiness: Normalized,
+}
+
+impl TrackFeatures {
+    /// A neutral mid-curve placeholder used by tests and fixtures.
+    /// NOT used in production — adapters always populate real values.
+    #[cfg(test)]
+    pub fn neutral() -> Self {
+        Self {
+            tempo: Bpm::DEFAULT_120,
+            key: PitchClass::C,
+            mode: Mode::Major,
+            energy: Normalized::HALF,
+            danceability: Normalized::HALF,
+            valence: Normalized::HALF,
+            loudness: -10.0,
+            acousticness: Normalized::HALF,
+            instrumentalness: Normalized::HALF,
+            liveness: Normalized::HALF,
+            speechiness: Normalized::HALF,
+        }
+    }
 }
 
 /// A fully-resolved track: query + ID + audio features.
@@ -118,5 +138,36 @@ mod tests {
     fn test_track_id_non_empty() {
         let id = TrackId::new("ISRC123");
         assert_eq!(id.get(), "ISRC123");
+    }
+
+    // ========== TrackFeatures serde round-trip tests ==========
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn test_track_features_neutral_round_trip_json() {
+        // Bitwise equality acceptable for serde round-trip of constant neutral fixture.
+        let original = TrackFeatures::neutral();
+        let json = serde_json::to_string(&original).expect("serialize");
+        let deserialized: TrackFeatures = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn test_track_with_neutral_features_round_trip() {
+        // Bitwise equality acceptable for serde round-trip of constant neutral fixture.
+        let query = TrackQuery::new("Test Track", "Test Artist");
+        let id = TrackId::new("test-id");
+        let features = TrackFeatures::neutral();
+        let track = Track {
+            query,
+            id,
+            features,
+        };
+
+        let json = serde_json::to_string(&track).expect("serialize");
+        let deserialized: Track = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(track, deserialized);
     }
 }
