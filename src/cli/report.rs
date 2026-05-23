@@ -21,6 +21,8 @@ use crate::domain::Track;
 use std::fmt::Write;
 use std::path::Path;
 
+pub use crate::algo::cost::CostBreakdown;
+
 pub struct SummaryInputs<'a> {
     pub resolved: usize,
     pub unresolved: usize,
@@ -33,15 +35,6 @@ pub struct SummaryInputs<'a> {
     pub after_arc_dev: f32,
     pub cost_breakdown: CostBreakdown,
     pub remaining_clashes: usize,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CostBreakdown {
-    pub arc: f32,
-    pub camelot: f32,
-    pub tempo: f32,
-    pub energy: f32,
-    pub artist: f32,
 }
 
 pub fn format_summary(s: &SummaryInputs<'_>) -> String {

@@ -132,6 +132,18 @@ impl Cache {
         self.features.len()
     }
 
+    /// Iterate over all (TrackQuery, &TrackId) resolution entries.
+    /// Used by integration-test scaffolding (Phase 7 Task 7) to
+    /// hydrate in-memory adapters from a warm-cache fixture.
+    pub fn all_resolutions(&self) -> impl Iterator<Item = (&TrackQuery, &TrackId)> {
+        self.resolutions.iter()
+    }
+
+    /// Iterate over all (&TrackId, &TrackFeatures) feature entries.
+    pub fn all_features(&self) -> impl Iterator<Item = (&TrackId, &TrackFeatures)> {
+        self.features.iter()
+    }
+
     /// Atomically persist the cache to disk.
     ///
     /// Steps:
@@ -488,5 +500,42 @@ mod tests {
             content, sentinel,
             "original file should be unchanged after failed save"
         );
+    }
+
+    // ========== Cache::all_resolutions and all_features tests (Task 4b) ==========
+
+    #[test]
+    fn all_resolutions_and_all_features_round_trip() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let mut cache = Cache::load(dir.path().join("dummy.json").as_path()).expect("empty cache");
+
+        let q = TrackQuery::new("Get Lucky", "Daft Punk");
+        let id = TrackId::new("USQX91300120");
+        cache.put_resolution(q.clone(), id.clone());
+
+        let features = crate::domain::TrackFeatures {
+            tempo: crate::domain::Bpm::new(120.0).expect("valid bpm"),
+            key: crate::domain::PitchClass::C,
+            mode: crate::domain::Mode::Major,
+            energy: crate::domain::Normalized::try_new(0.5).expect("valid norm"),
+            danceability: crate::domain::Normalized::try_new(0.6).expect("valid norm"),
+            valence: crate::domain::Normalized::try_new(0.7).expect("valid norm"),
+            loudness: -5.5,
+            acousticness: crate::domain::Normalized::try_new(0.2).expect("valid norm"),
+            instrumentalness: crate::domain::Normalized::try_new(0.0).expect("valid norm"),
+            liveness: crate::domain::Normalized::try_new(0.1).expect("valid norm"),
+            speechiness: crate::domain::Normalized::try_new(0.05).expect("valid norm"),
+        };
+        cache.put_features(id.clone(), features.clone());
+
+        let resolutions: Vec<_> = cache.all_resolutions().collect();
+        assert_eq!(resolutions.len(), 1);
+        assert_eq!(resolutions[0].0, &q);
+        assert_eq!(resolutions[0].1, &id);
+
+        let feature_entries: Vec<_> = cache.all_features().collect();
+        assert_eq!(feature_entries.len(), 1);
+        assert_eq!(feature_entries[0].0, &id);
+        assert_eq!(feature_entries[0].1, &features);
     }
 }

@@ -15,4 +15,4 @@ pub mod test_support;
 pub use anneal::{optimize, AnnealConfig};
 pub use arc::EnergyArc;
 pub use camelot::CamelotTable;
-pub use cost::{CostContext, CostWeights};
+pub use cost::{CostBreakdown, CostContext, CostWeights};

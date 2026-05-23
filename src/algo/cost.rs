@@ -12,6 +12,18 @@
 use crate::algo::{CamelotTable, EnergyArc};
 use crate::domain::{CamelotCode, Track};
 
+/// Per-term breakdown of the cost over an ordering. Returned by
+/// `CostContext::cost_breakdown`. Lives in `algo/cost.rs` (not
+/// `cli/report.rs`) so that the algorithm owns the cost taxonomy.
+#[derive(Debug, Clone, Copy)]
+pub struct CostBreakdown {
+    pub arc: f32,
+    pub camelot: f32,
+    pub tempo: f32,
+    pub energy: f32,
+    pub artist: f32,
+}
+
 /// Weights for each term in the cost function.
 #[derive(Debug, Clone)]
 pub struct CostWeights {
@@ -59,35 +71,40 @@ pub struct CostContext<'a> {
 }
 
 impl<'a> CostContext<'a> {
-    /// Full cost over `ordering[..]`.
-    ///
-    /// Computes the sum of:
-    /// - Per-position arc deviation
-    /// - Pairwise terms for distance-1 neighbors
-    /// - Pairwise terms for distance-2 neighbors (scaled by 0.5)
-    /// - Artist-clash penalties for pairs within artist_window
-    pub fn total_cost(&self, ordering: &[usize]) -> f32 {
+    /// Per-term cost decomposition. Σ of all five terms equals
+    /// `total_cost(ordering)` (within f32 rounding).
+    pub fn cost_breakdown(&self, ordering: &[usize]) -> CostBreakdown {
         let n = ordering.len();
-        let mut cost = 0.0;
+        let mut arc = 0.0;
+        let mut camelot = 0.0;
+        let mut tempo = 0.0;
+        let mut energy = 0.0;
+        let mut artist = 0.0;
 
         // Arc deviation per position
         for (pos, &track_idx) in ordering.iter().enumerate() {
-            let energy = self.tracks[track_idx].features.energy;
-            cost += self.weights.arc_deviation * self.arc.deviation_cost(pos, n, energy);
+            let energy_val = self.tracks[track_idx].features.energy;
+            arc += self.weights.arc_deviation * self.arc.deviation_cost(pos, n, energy_val);
         }
 
         // Pairwise terms for adjacent pairs (distance-1)
         for i in 0..n.saturating_sub(1) {
             let track_i = &self.tracks[ordering[i]];
             let track_j = &self.tracks[ordering[i + 1]];
-            cost += self.pairwise_term(track_i, track_j);
+            let (c, t, e) = self.pairwise_term_breakdown(track_i, track_j);
+            camelot += c;
+            tempo += t;
+            energy += e;
         }
 
         // Pairwise terms for distance-2 pairs (scaled by 0.5)
         for i in 0..n.saturating_sub(2) {
             let track_i = &self.tracks[ordering[i]];
             let track_k = &self.tracks[ordering[i + 2]];
-            cost += 0.5 * self.pairwise_term(track_i, track_k);
+            let (c, t, e) = self.pairwise_term_breakdown(track_i, track_k);
+            camelot += 0.5 * c;
+            tempo += 0.5 * t;
+            energy += 0.5 * e;
         }
 
         // Artist-clash penalties
@@ -100,13 +117,25 @@ impl<'a> CostContext<'a> {
                     let artist_i = &self.tracks[ordering[i]].query.artist;
                     let artist_j = &self.tracks[ordering[j]].query.artist;
                     if artist_i.eq_ignore_ascii_case(artist_j) {
-                        cost += self.weights.artist_clash;
+                        artist += self.weights.artist_clash;
                     }
                 }
             }
         }
 
-        cost
+        CostBreakdown { arc, camelot, tempo, energy, artist }
+    }
+
+    /// Full cost over `ordering[..]`.
+    ///
+    /// Computes the sum of:
+    /// - Per-position arc deviation
+    /// - Pairwise terms for distance-1 neighbors
+    /// - Pairwise terms for distance-2 neighbors (scaled by 0.5)
+    /// - Artist-clash penalties for pairs within artist_window
+    pub fn total_cost(&self, ordering: &[usize]) -> f32 {
+        let b = self.cost_breakdown(ordering);
+        b.arc + b.camelot + b.tempo + b.energy + b.artist
     }
 
     /// Incremental cost change for swapping `ordering[a]` and `ordering[b]`.
@@ -206,6 +235,12 @@ impl<'a> CostContext<'a> {
 
     /// Compute the pairwise cost term between two adjacent (or nearby) tracks.
     fn pairwise_term(&self, track_i: &Track, track_j: &Track) -> f32 {
+        let (c, t, e) = self.pairwise_term_breakdown(track_i, track_j);
+        c + t + e
+    }
+
+    /// Compute the pairwise cost term breakdown into (camelot, tempo, energy).
+    fn pairwise_term_breakdown(&self, track_i: &Track, track_j: &Track) -> (f32, f32, f32) {
         let camelot_i = CamelotCode::from((track_i.features.key, track_i.features.mode));
         let camelot_j = CamelotCode::from((track_j.features.key, track_j.features.mode));
 
@@ -216,7 +251,7 @@ impl<'a> CostContext<'a> {
         let energy_cost = self.weights.energy_jump
             * (track_i.features.energy.get() - track_j.features.energy.get()).abs();
 
-        camelot_cost + tempo_cost + energy_cost
+        (camelot_cost, tempo_cost, energy_cost)
     }
 }
 
@@ -379,6 +414,28 @@ mod tests {
                 "delta {} vs actual diff {}",
                 delta,
                 after - before
+            );
+        }
+
+        #[test]
+        fn breakdown_sum_equals_total_cost(
+            n in 5usize..=20,
+            seed in any::<u64>(),
+        ) {
+            let tracks = synthetic_tracks(n, seed);
+            let ctx = CostContext {
+                tracks: &tracks,
+                weights: CostWeights::default(),
+                arc: EnergyArc,
+                camelot_table: CamelotTable::new(),
+            };
+            let ordering: Vec<usize> = (0..n).collect();
+            let total = ctx.total_cost(&ordering);
+            let b = ctx.cost_breakdown(&ordering);
+            let sum = b.arc + b.camelot + b.tempo + b.energy + b.artist;
+            prop_assert!(
+                (total - sum).abs() < 1e-3,
+                "sum {} vs total {}", sum, total
             );
         }
     }
