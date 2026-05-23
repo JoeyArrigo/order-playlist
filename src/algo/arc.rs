@@ -7,6 +7,11 @@
 
 use crate::domain::Normalized;
 
+/// Target per-position energy curve for the playlist.
+///
+/// The default curve is a fixed asymmetric shape that peaks near position 0.68
+/// and tapers to ~0.3 at both ends. Used to guide the optimizer toward playlists
+/// with high energy in the middle and lower energy at the start and end.
 pub struct EnergyArc;
 
 impl EnergyArc {

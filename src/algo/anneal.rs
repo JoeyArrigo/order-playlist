@@ -9,6 +9,7 @@ use rand::{seq::SliceRandom, Rng};
 use rand_chacha::ChaCha20Rng;
 
 /// Helper to generate a random usize in the range [0, n)
+/// Note: uses modulo, which has negligible bias for n ≤ 100 (< 1 part in 4e7).
 #[inline]
 fn gen_range_usize(rng: &mut ChaCha20Rng, n: usize) -> usize {
     let val = rng.next_u32() as usize;
@@ -22,6 +23,10 @@ fn gen_f32(rng: &mut ChaCha20Rng) -> f32 {
     (val as f32) / (u32::MAX as f32 + 1.0)
 }
 
+/// Configuration for the simulated annealing optimizer.
+///
+/// Tuning parameters include cooling rate, iteration budget, restart strategy,
+/// and pilot calibration settings for initial temperature selection.
 #[derive(Debug, Clone)]
 pub struct AnnealConfig {
     /// Cooling rate. α < 1; default 0.998.
@@ -84,7 +89,8 @@ pub fn optimize(
                 break x;
             }
         };
-        let delta = ctx.delta_cost(&initial, a, b);
+        let mut initial_copy = initial.clone();
+        let delta = ctx.delta_cost(&mut initial_copy, a, b);
         if delta > 0.0 {
             positive_deltas.push(delta);
         }
@@ -140,7 +146,7 @@ pub fn optimize(
                 }
             };
 
-            let delta = ctx.delta_cost(&ordering, a, b);
+            let delta = ctx.delta_cost(&mut ordering, a, b);
 
             // Accept if delta < 0 OR rng.gen::<f32>() < exp(-delta / T)
             let rand_val = gen_f32(rng);
@@ -172,78 +178,11 @@ pub fn optimize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algo::{CamelotTable, EnergyArc};
-    use crate::domain::{
-        Bpm, Mode, Normalized, PitchClass, Track, TrackFeatures, TrackId, TrackQuery,
-    };
+    use crate::algo::test_support::{synthetic_tracks, synthetic_tracks_with_artists};
+    use crate::algo::{CamelotTable, CostContext, CostWeights, EnergyArc};
     use proptest::prelude::*;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
-
-    /// Build n deterministic Tracks with seeded random features.
-    fn synthetic_tracks(n: usize, seed: u64) -> Vec<Track> {
-        let mut tracks = Vec::with_capacity(n);
-
-        for i in 0..n {
-            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", i));
-            let id = TrackId::new(format!("id-{}", i));
-
-            let mut features = TrackFeatures::neutral();
-            let seed_f = (seed as f32 + i as f32) * 0.001;
-            let tempo_val = 80.0 + ((seed_f.sin() * 20.0) + (seed_f.cos() * 20.0));
-            features.tempo = Bpm::new(tempo_val).unwrap();
-            let key_val = ((seed as u8).wrapping_add(i as u8)) % 12;
-            features.key = PitchClass::new(key_val).unwrap();
-            features.mode = if (i ^ (seed as usize)) & 1 == 0 {
-                Mode::Major
-            } else {
-                Mode::Minor
-            };
-            let energy_val = 0.3 + ((seed_f.sin() * 0.2) + (seed_f.cos() * 0.2)).abs();
-            features.energy = Normalized::clamp(energy_val);
-
-            tracks.push(Track {
-                query,
-                id,
-                features,
-            });
-        }
-
-        tracks
-    }
-
-    /// Build n synthetic tracks with specific artists distributed round-robin.
-    fn synthetic_tracks_with_artists(n: usize, n_artists: usize, seed: u64) -> Vec<Track> {
-        let mut tracks = Vec::with_capacity(n);
-
-        for i in 0..n {
-            let artist_idx = i % n_artists;
-            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", artist_idx));
-            let id = TrackId::new(format!("id-{}", i));
-
-            let mut features = TrackFeatures::neutral();
-            let seed_f = (seed as f32 + i as f32) * 0.001;
-            let tempo_val = 80.0 + ((seed_f.sin() * 20.0) + (seed_f.cos() * 20.0));
-            features.tempo = Bpm::new(tempo_val).unwrap();
-            let key_val = ((seed as u8).wrapping_add(i as u8)) % 12;
-            features.key = PitchClass::new(key_val).unwrap();
-            features.mode = if (i ^ (seed as usize)) & 1 == 0 {
-                Mode::Major
-            } else {
-                Mode::Minor
-            };
-            let energy_val = 0.3 + ((seed_f.sin() * 0.2) + (seed_f.cos() * 0.2)).abs();
-            features.energy = Normalized::clamp(energy_val);
-
-            tracks.push(Track {
-                query,
-                id,
-                features,
-            });
-        }
-
-        tracks
-    }
 
     #[test]
     fn smoke_test_5_track_completes_quickly() {
@@ -326,9 +265,11 @@ mod tests {
         #![proptest_config(ProptestConfig { cases: 10, .. ProptestConfig::default() })]
         #[test]
         fn improvement_on_bad_initial(seed in any::<u64>()) {
-            // Create a deliberately bad initial ordering (artist clustering)
+            // Create synthetic tracks where artists are pre-clustered in the input array.
+            // The sequential initial ordering (track indices [0,1,...,n-1]) exposes
+            // this clustering at the position level, creating a bad starting cost.
+            // The optimizer should improve upon this.
             let mut tracks = synthetic_tracks(20, seed);
-            // Reorder to cluster by artist initially (bad)
             for (i, track) in tracks.iter_mut().enumerate() {
                 track.query.artist = format!("Artist {}", i / 5);
             }
@@ -339,7 +280,6 @@ mod tests {
                 camelot_table: CamelotTable::new(),
             };
 
-            // Initial ordering is sequential (artist-clustered)
             let initial: Vec<usize> = (0..20).collect();
             let initial_cost = ctx.total_cost(&initial);
 
@@ -440,47 +380,33 @@ mod tests {
         #![proptest_config(ProptestConfig { cases: 8, .. ProptestConfig::default() })]
         #[test]
         fn artist_spacing_respected_default_window(seed in any::<u64>()) {
-            // Build 20 synthetic tracks with 4 distinct artists (5 tracks each).
-            // With a heavy artist_clash weight, the optimizer should minimize artist clashes.
-            let tracks = synthetic_tracks_with_artists(20, 4, seed);
-            let weights = crate::algo::CostWeights {
-                // Double the default weight to ensure strong optimization toward artist spacing
-                artist_clash: 100.0,
-                ..Default::default()
-            };
+            // Build 20 synthetic tracks with 5 distinct artists (distributed round-robin).
+            // This is feasible: with 5 artists and 20 tracks, we can achieve zero artist
+            // clashes within the window of 4 (average spacing of 4 between same-artist tracks).
+            let tracks = synthetic_tracks_with_artists(20, 5, seed);
             let ctx = CostContext {
                 tracks: &tracks,
-                weights,
+                weights: CostWeights::default(), // artist_window=4, artist_clash=500.0
                 arc: EnergyArc,
                 camelot_table: CamelotTable::new(),
             };
             let initial: Vec<usize> = (0..20).collect();
-            let initial_cost = ctx.total_cost(&initial);
-
+            let config = AnnealConfig {
+                iterations: 200_000,  // Sufficient iterations to find zero-clash solution
+                ..Default::default()
+            };
             let mut rng = ChaCha20Rng::seed_from_u64(seed);
-            let result = optimize(initial, &ctx, &AnnealConfig::default(), &mut rng);
-            let result_cost = ctx.total_cost(&result);
+            let result = optimize(initial, &ctx, &config, &mut rng);
 
-            // With the heavy artist_clash weight, cost should improve significantly
-            prop_assert!(result_cost < initial_cost * 0.8,
-                "optimizer should reduce cost substantially");
-
-            // Count clashes - verify significant reduction from initial state
-            let mut initial_clashes = 0;
-            let mut result_clashes = 0;
-            for i in 0..20 {
-                for j in (i+1)..(i+5).min(20) {
-                    if tracks[i].query.artist.eq_ignore_ascii_case(&tracks[j].query.artist) {
-                        initial_clashes += 1;
-                    }
-                    if tracks[result[i]].query.artist.eq_ignore_ascii_case(&tracks[result[j]].query.artist) {
-                        result_clashes += 1;
-                    }
+            // Assert the invariant: no two tracks within 4 positions share an artist.
+            for i in 0..result.len() {
+                for j in (i+1)..(i+5).min(result.len()) {
+                    let a_i = &tracks[result[i]].query.artist;
+                    let a_j = &tracks[result[j]].query.artist;
+                    prop_assert!(!a_i.eq_ignore_ascii_case(a_j),
+                        "clash at positions {} and {}: {:?} vs {:?}", i, j, a_i, a_j);
                 }
             }
-            // Verify we at least reduced clashes by 50%
-            prop_assert!(result_clashes < initial_clashes,
-                "should reduce clashes from {} to < {}", initial_clashes, initial_clashes);
         }
     }
 }

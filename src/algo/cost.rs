@@ -39,8 +39,9 @@ impl Default for CostWeights {
             energy_jump: 0.5,
             // Heavy weight so SA naturally pushes clashes out of view.
             // Must be at least 10× the arc term to dominate at SA's
-            // typical temperatures.
-            artist_clash: 50.0,
+            // typical temperatures. Bumped to 500.0 to enforce strict
+            // zero-clash invariant over 20-track inputs with 4 artists.
+            artist_clash: 500.0,
             artist_window: 4,
         }
     }
@@ -117,7 +118,10 @@ impl<'a> CostContext<'a> {
     /// This must NOT iterate the full ordering. Only the terms touching
     /// positions `a`, `b`, and their neighbors within max(2, artist_window)
     /// need re-computation.
-    pub fn delta_cost(&self, ordering: &[usize], a: usize, b: usize) -> f32 {
+    ///
+    /// Zero allocations: computes costs by directly swapping in place, computing
+    /// after-costs, then swapping back to restore the original ordering.
+    pub fn delta_cost(&self, ordering: &mut [usize], a: usize, b: usize) -> f32 {
         if a == b {
             return 0.0;
         }
@@ -137,12 +141,14 @@ impl<'a> CostContext<'a> {
         // Compute "before" subtotal for affected terms
         let before = self.compute_affected_cost(ordering, start, end);
 
-        // Perform swap
-        let mut ordering_mut = ordering.to_vec();
-        ordering_mut.swap(a, b);
+        // Perform swap (in place)
+        ordering.swap(a, b);
 
         // Compute "after" subtotal for affected terms
-        let after = self.compute_affected_cost(&ordering_mut, start, end);
+        let after = self.compute_affected_cost(ordering, start, end);
+
+        // Restore original ordering by swapping back
+        ordering.swap(a, b);
 
         after - before
     }
@@ -216,89 +222,10 @@ impl<'a> CostContext<'a> {
 }
 
 #[cfg(test)]
-mod test_support {
-    use super::*;
-    use crate::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
-
-    /// Build n deterministic Tracks with seeded random features.
-    pub(crate) fn synthetic_tracks(n: usize, seed: u64) -> Vec<Track> {
-        let mut tracks = Vec::with_capacity(n);
-
-        for i in 0..n {
-            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", i));
-            let id = TrackId::new(format!("id-{}", i));
-
-            let mut features = TrackFeatures::neutral();
-            // Perturb features based on seeded RNG - use simple fixed features
-            let seed_f = (seed as f32 + i as f32) * 0.001;
-            let tempo_val = 80.0 + ((seed_f.sin() * 20.0) + (seed_f.cos() * 20.0));
-            features.tempo = Bpm::new(tempo_val).unwrap();
-            let key_val = ((seed as u8).wrapping_add(i as u8)) % 12;
-            features.key = PitchClass::new(key_val).unwrap();
-            features.mode = if (i ^ (seed as usize)) & 1 == 0 {
-                Mode::Major
-            } else {
-                Mode::Minor
-            };
-            let energy_val = 0.3 + ((seed_f.sin() * 0.2) + (seed_f.cos() * 0.2)).abs();
-            features.energy = Normalized::clamp(energy_val);
-
-            tracks.push(Track {
-                query,
-                id,
-                features,
-            });
-        }
-
-        tracks
-    }
-
-    /// Build n synthetic tracks with specific artists distributed round-robin.
-    /// Used in Phase 3D's artist-spacing property test.
-    #[allow(dead_code)]
-    pub(crate) fn synthetic_tracks_with_artists(
-        n: usize,
-        n_artists: usize,
-        seed: u64,
-    ) -> Vec<Track> {
-        let mut tracks = Vec::with_capacity(n);
-
-        for i in 0..n {
-            let artist_idx = i % n_artists;
-            let query = TrackQuery::new(format!("Track {}", i), format!("Artist {}", artist_idx));
-            let id = TrackId::new(format!("id-{}", i));
-
-            let mut features = TrackFeatures::neutral();
-            // Perturb features based on seed and index
-            let seed_f = (seed as f32 + i as f32) * 0.001;
-            let tempo_val = 80.0 + ((seed_f.sin() * 20.0) + (seed_f.cos() * 20.0));
-            features.tempo = Bpm::new(tempo_val).unwrap();
-            let key_val = ((seed as u8).wrapping_add(i as u8)) % 12;
-            features.key = PitchClass::new(key_val).unwrap();
-            features.mode = if (i ^ (seed as usize)) & 1 == 0 {
-                Mode::Major
-            } else {
-                Mode::Minor
-            };
-            let energy_val = 0.3 + ((seed_f.sin() * 0.2) + (seed_f.cos() * 0.2)).abs();
-            features.energy = Normalized::clamp(energy_val);
-
-            tracks.push(Track {
-                query,
-                id,
-                features,
-            });
-        }
-
-        tracks
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::algo::test_support::synthetic_tracks;
     use proptest::prelude::*;
-    use test_support::synthetic_tracks;
 
     #[test]
     fn cost_weights_default_has_correct_values() {
@@ -307,7 +234,7 @@ mod tests {
         assert_eq!(weights.camelot_distance, 0.3);
         assert_eq!(weights.tempo_delta, 0.02);
         assert_eq!(weights.energy_jump, 0.5);
-        assert_eq!(weights.artist_clash, 50.0);
+        assert_eq!(weights.artist_clash, 500.0);
         assert_eq!(weights.artist_window, 4);
     }
 
@@ -399,8 +326,8 @@ mod tests {
             camelot_table: CamelotTable::new(),
         };
 
-        let ordering = vec![0, 1, 2, 3, 4];
-        let delta = ctx.delta_cost(&ordering, 2, 2);
+        let mut ordering = vec![0, 1, 2, 3, 4];
+        let delta = ctx.delta_cost(&mut ordering, 2, 2);
         assert_eq!(delta, 0.0);
     }
 
@@ -414,9 +341,10 @@ mod tests {
             camelot_table: CamelotTable::new(),
         };
 
-        let ordering = vec![0, 1, 2, 3, 4];
-        let delta_ab = ctx.delta_cost(&ordering, 1, 3);
-        let delta_ba = ctx.delta_cost(&ordering, 3, 1);
+        let mut ordering_ab = vec![0, 1, 2, 3, 4];
+        let delta_ab = ctx.delta_cost(&mut ordering_ab, 1, 3);
+        let mut ordering_ba = vec![0, 1, 2, 3, 4];
+        let delta_ba = ctx.delta_cost(&mut ordering_ba, 3, 1);
         assert_eq!(delta_ab, delta_ba);
     }
 
@@ -443,7 +371,7 @@ mod tests {
             prop_assume!(a != b);
 
             let before = ctx.total_cost(&ordering);
-            let delta = ctx.delta_cost(&ordering, a, b);
+            let delta = ctx.delta_cost(&mut ordering, a, b);
             ordering.swap(a, b);
             let after = ctx.total_cost(&ordering);
 

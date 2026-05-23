@@ -9,6 +9,8 @@ pub mod anneal;
 pub mod arc;
 pub mod camelot;
 pub mod cost;
+#[cfg(test)]
+pub mod test_support;
 
 pub use anneal::{optimize, AnnealConfig};
 pub use arc::EnergyArc;
