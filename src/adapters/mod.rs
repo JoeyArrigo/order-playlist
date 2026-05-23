@@ -6,5 +6,7 @@
 //! a new feature flag and a new impl; nothing in `algo/` or `domain/`
 //! should change.
 
-// Submodules added in later phases: csv_io, cache (Phase 4),
+pub mod csv_io;
+
+// Submodules added in later phases: cache (Phase 4),
 // musicbrainz (Phase 5), reccobeats (Phase 6).
