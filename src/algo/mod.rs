@@ -5,6 +5,8 @@
 //! `anyhow::Result` is also banned here — all error surfaces are infallible
 //! in this module (the algorithm is pure-by-construction).
 
+pub mod arc;
 pub mod camelot;
 
+pub use arc::EnergyArc;
 pub use camelot::CamelotTable;
