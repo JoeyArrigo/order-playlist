@@ -247,16 +247,14 @@ mod tests {
     #[test_case(10; "pitch_class_10")]
     #[test_case(11; "pitch_class_11")]
     fn pitch_class_accepts_0_to_11(value: u8) {
-        let pc = PitchClass::new(value).unwrap_or_else(|_| panic!("PitchClass {} should be valid", value));
+        let pc = PitchClass::new(value)
+            .unwrap_or_else(|_| panic!("PitchClass {} should be valid", value));
         assert_eq!(pc.get(), value);
     }
 
     #[test]
     fn pitch_class_rejects_12() {
-        assert_eq!(
-            PitchClass::new(12),
-            Err(DomainError::InvalidPitchClass(12))
-        );
+        assert_eq!(PitchClass::new(12), Err(DomainError::InvalidPitchClass(12)));
     }
 
     #[test]
@@ -352,7 +350,17 @@ mod tests {
     fn normalized_clamp_idempotence() {
         // For any value, clamp(clamp(x)).get() == clamp(x).get()
         let values = vec![
-            -5.0, -1.0, 0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, f32::NAN, f32::INFINITY,
+            -5.0,
+            -1.0,
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0,
+            1.5,
+            2.0,
+            f32::NAN,
+            f32::INFINITY,
             f32::NEG_INFINITY,
         ];
 

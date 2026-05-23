@@ -62,18 +62,18 @@ impl From<(PitchClass, Mode)> for CamelotCode {
             Mode::Major => {
                 // Major mode → B ring
                 let number = match pitch_value {
-                    0 => 8,   // C  → 8B
-                    1 => 3,   // C# → 3B
-                    2 => 10,  // D  → 10B
-                    3 => 5,   // D# → 5B
-                    4 => 12,  // E  → 12B
-                    5 => 7,   // F  → 7B
-                    6 => 2,   // F# → 2B
-                    7 => 9,   // G  → 9B
-                    8 => 4,   // G# → 4B
-                    9 => 11,  // A  → 11B
-                    10 => 6,  // A# → 6B
-                    11 => 1,  // B  → 1B
+                    0 => 8,  // C  → 8B
+                    1 => 3,  // C# → 3B
+                    2 => 10, // D  → 10B
+                    3 => 5,  // D# → 5B
+                    4 => 12, // E  → 12B
+                    5 => 7,  // F  → 7B
+                    6 => 2,  // F# → 2B
+                    7 => 9,  // G  → 9B
+                    8 => 4,  // G# → 4B
+                    9 => 11, // A  → 11B
+                    10 => 6, // A# → 6B
+                    11 => 1, // B  → 1B
                     _ => unreachable!("PitchClass is validated to 0..=11"),
                 };
                 CamelotCode {
@@ -187,9 +187,7 @@ mod tests {
                 assert!(
                     !indices[idx as usize],
                     "Duplicate index {} for pitch {}, mode {:?}",
-                    idx,
-                    pitch_value,
-                    mode
+                    idx, pitch_value, mode
                 );
 
                 indices[idx as usize] = true;
@@ -213,18 +211,18 @@ mod tests {
             CamelotLetter::B => {
                 // Major mode
                 let pitch_value = match code.number {
-                    1 => 11,  // 1B  → B
-                    2 => 6,   // 2B  → F#
-                    3 => 1,   // 3B  → C#
-                    4 => 8,   // 4B  → G#
-                    5 => 3,   // 5B  → D#
-                    6 => 10,  // 6B  → A#
-                    7 => 5,   // 7B  → F
-                    8 => 0,   // 8B  → C
-                    9 => 7,   // 9B  → G
-                    10 => 2,  // 10B → D
-                    11 => 9,  // 11B → A
-                    12 => 4,  // 12B → E
+                    1 => 11, // 1B  → B
+                    2 => 6,  // 2B  → F#
+                    3 => 1,  // 3B  → C#
+                    4 => 8,  // 4B  → G#
+                    5 => 3,  // 5B  → D#
+                    6 => 10, // 6B  → A#
+                    7 => 5,  // 7B  → F
+                    8 => 0,  // 8B  → C
+                    9 => 7,  // 9B  → G
+                    10 => 2, // 10B → D
+                    11 => 9, // 11B → A
+                    12 => 4, // 12B → E
                     _ => panic!("Invalid Camelot number: {}", code.number),
                 };
                 (
@@ -278,8 +276,7 @@ mod tests {
                 assert_eq!(
                     original.1, recovered.1,
                     "Mode mismatch in round-trip for pitch {}, mode {:?}",
-                    pitch_value,
-                    mode
+                    pitch_value, mode
                 );
             }
         }
