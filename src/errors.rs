@@ -106,6 +106,63 @@ pub enum CacheError {
     },
 }
 
+/// Error type for adapter (resolver) failures.
+///
+/// Groups errors from multiple adapter backends (MusicBrainz, ReccoBeats, etc.)
+/// under a single enum so orchestration can handle them uniformly.
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+pub enum AdapterError {
+    /// MusicBrainz-specific resolution failure.
+    #[error("MusicBrainz error: {0}")]
+    #[diagnostic(code(playlistize::adapter::musicbrainz))]
+    MusicBrainz(#[from] MusicBrainzError),
+
+    /// Rate limiting encountered on an adapter endpoint.
+    ///
+    /// This may come from MusicBrainz (HTTP 503) or other providers.
+    /// Exhausted retries after rate limiting.
+    #[error("rate limited; exhausted retries on {endpoint}")]
+    #[diagnostic(
+        code(playlistize::adapter::rate_limited),
+        help("re-run later; consider authenticated MusicBrainz access for higher quota")
+    )]
+    RateLimited { endpoint: String },
+}
+
+/// Error type for MusicBrainz WS2 resolution failures.
+///
+/// Captures the error kind, the failing query, and an optional underlying
+/// reqwest error (for network errors, not for application-level failures like
+/// "no candidates found").
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+#[error("MusicBrainz {kind:?} for {query:?}")]
+#[diagnostic(code(playlistize::adapter::musicbrainz::error))]
+pub struct MusicBrainzError {
+    /// Classification of the failure (network, parse, rate limit, no candidates).
+    pub kind: MusicBrainzErrorKind,
+    /// The query that failed.
+    pub query: crate::domain::TrackQuery,
+    /// Underlying reqwest error, if this was a network/HTTP failure.
+    #[source]
+    pub source: Option<reqwest::Error>,
+}
+
+/// Classification of MusicBrainz resolution failures.
+///
+/// Used to distinguish transient errors (network, rate limit) from
+/// semantic failures (parse errors, no matching candidates).
+#[derive(Debug, Clone)]
+pub enum MusicBrainzErrorKind {
+    /// Network error: connection failed, timeout, or other I/O issue.
+    Network,
+    /// Parse error: JSON deserialization failed.
+    Parse,
+    /// Rate limiting: HTTP 503 or 429 received.
+    RateLimit,
+    /// No matching candidates: search returned empty or all candidates had no ISRCs.
+    NoCandidates,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,5 +202,58 @@ mod tests {
         let display = err.to_string();
         assert!(display.contains("1"), "found version should be visible");
         assert!(display.contains("2"), "expected version should be visible");
+    }
+
+    #[test]
+    fn adapter_error_musicbrainz_formats_query_title() {
+        let mb_err = MusicBrainzError {
+            kind: MusicBrainzErrorKind::Network,
+            query: crate::domain::TrackQuery::new("Test Song", "Test Artist"),
+            source: None,
+        };
+        let adapter_err: AdapterError = mb_err.into();
+        let display = adapter_err.to_string();
+        assert!(
+            display.contains("Test Song"),
+            "query title should appear in error message"
+        );
+    }
+
+    #[test]
+    fn adapter_error_rate_limited_formats() {
+        let err = AdapterError::RateLimited {
+            endpoint: "musicbrainz.org".into(),
+        };
+        let display = err.to_string();
+        assert!(
+            display.contains("musicbrainz.org"),
+            "endpoint should be visible in error"
+        );
+        assert!(display.contains("rate limited"));
+    }
+
+    #[test]
+    fn musicbrainz_error_with_network_kind() {
+        let err = MusicBrainzError {
+            kind: MusicBrainzErrorKind::Network,
+            query: crate::domain::TrackQuery::new("Title", "Artist"),
+            source: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Network"));
+        assert!(display.contains("Title"));
+        assert!(display.contains("Artist"));
+    }
+
+    #[test]
+    fn musicbrainz_error_with_no_candidates_kind() {
+        let err = MusicBrainzError {
+            kind: MusicBrainzErrorKind::NoCandidates,
+            query: crate::domain::TrackQuery::new("Obscure", "Band"),
+            source: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("NoCandidates"));
+        assert!(display.contains("Obscure"));
     }
 }
