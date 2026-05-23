@@ -106,6 +106,37 @@ pub enum CacheError {
     },
 }
 
+/// Error type for ReccoBeats audio-features failures.
+///
+/// Captures the error kind, the failing ID batch, and an optional underlying
+/// reqwest error (for network errors, not for application-level failures).
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+#[error("ReccoBeats {kind:?} for {ids:?}")]
+#[diagnostic(code(playlistize::adapter::reccobeats::error))]
+pub struct ReccoBeatsError {
+    /// Classification of the failure (network, parse, throttled).
+    pub kind: ReccoBeatsErrorKind,
+    /// The IDs that failed.
+    pub ids: Vec<String>,
+    /// Underlying reqwest error, if this was a network/HTTP failure.
+    #[source]
+    pub source: Option<reqwest::Error>,
+}
+
+/// Classification of ReccoBeats audio-features failures.
+///
+/// Used to distinguish transient errors (network, throttled) from
+/// semantic failures (parse errors).
+#[derive(Debug, Clone)]
+pub enum ReccoBeatsErrorKind {
+    /// Network error: connection failed, timeout, or other I/O issue.
+    Network,
+    /// Parse error: JSON deserialization failed.
+    Parse,
+    /// Throttled: HTTP 429 received (transient, retryable).
+    Throttled,
+}
+
 /// Error type for adapter (resolver) failures.
 ///
 /// Groups errors from multiple adapter backends (MusicBrainz, ReccoBeats, etc.)
@@ -116,6 +147,11 @@ pub enum AdapterError {
     #[error("MusicBrainz error: {0}")]
     #[diagnostic(code(playlistize::adapter::musicbrainz))]
     MusicBrainz(#[from] MusicBrainzError),
+
+    /// ReccoBeats-specific audio-features failure.
+    #[error("ReccoBeats error: {0}")]
+    #[diagnostic(code(playlistize::adapter::reccobeats))]
+    ReccoBeats(#[from] ReccoBeatsError),
 
     /// Rate limiting encountered on an adapter endpoint.
     ///
@@ -255,5 +291,53 @@ mod tests {
         let display = err.to_string();
         assert!(display.contains("NoCandidates"));
         assert!(display.contains("Obscure"));
+    }
+
+    #[test]
+    fn reccobeats_error_network_kind_constructs() {
+        let err = ReccoBeatsError {
+            kind: ReccoBeatsErrorKind::Network,
+            ids: vec!["USQX91300120".to_string()],
+            source: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Network"));
+        assert!(display.contains("USQX91300120"));
+    }
+
+    #[test]
+    fn reccobeats_error_parse_kind_constructs() {
+        let err = ReccoBeatsError {
+            kind: ReccoBeatsErrorKind::Parse,
+            ids: vec!["ID1".to_string(), "ID2".to_string()],
+            source: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Parse"));
+        assert!(display.contains("ID1"));
+    }
+
+    #[test]
+    fn reccobeats_error_throttled_kind_constructs() {
+        let err = ReccoBeatsError {
+            kind: ReccoBeatsErrorKind::Throttled,
+            ids: vec!["USQX91300120".to_string()],
+            source: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Throttled"));
+    }
+
+    #[test]
+    fn adapter_error_from_reccobeats_error() {
+        let rb_err = ReccoBeatsError {
+            kind: ReccoBeatsErrorKind::Network,
+            ids: vec!["USQX91300120".to_string()],
+            source: None,
+        };
+        let adapter_err: AdapterError = rb_err.into();
+        let display = adapter_err.to_string();
+        assert!(display.contains("ReccoBeats error"));
+        assert!(display.contains("USQX91300120"));
     }
 }

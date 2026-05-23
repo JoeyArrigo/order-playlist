@@ -12,7 +12,10 @@ pub mod csv_io;
 #[cfg(feature = "musicbrainz")]
 pub mod musicbrainz;
 
-use crate::domain::{TrackId, TrackQuery};
+#[cfg(feature = "reccobeats")]
+pub mod reccobeats;
+
+use crate::domain::{TrackFeatures, TrackId, TrackQuery};
 
 // Re-exports of core adapter functions (Task 8 re-export level; traits land in Phase 5/6).
 pub use cache::{Cache, CacheFile, CACHE_VERSION};
@@ -20,6 +23,21 @@ pub use csv_io::{read_input, write_output, write_unresolved, Unresolved};
 
 #[cfg(feature = "musicbrainz")]
 pub use musicbrainz::MusicBrainzIsrcResolver;
+
+/// Resolves track IDs to their audio features.
+///
+/// Implementations must:
+/// - Honor cache read-through per ID; only un-cached IDs hit the network.
+/// - Cache successes; do NOT cache transient failures (re-attempt on next run).
+/// - Emit `tracing::info!` on every network call (AC9.2).
+#[async_trait::async_trait]
+pub trait FeatureSource: Send + Sync {
+    /// Resolve multiple track IDs to their audio features.
+    ///
+    /// Returns a vec of `(id, Option<features>)` tuples. Order must match input order.
+    /// `None` indicates the ID could not be resolved (not found, transient error, etc.).
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)>;
+}
 
 /// Outcome of resolving a single `TrackQuery`.
 ///
