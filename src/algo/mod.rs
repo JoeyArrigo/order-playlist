@@ -1,8 +1,10 @@
-//! Pure algorithm core — cost function, energy arc, Camelot distance,
-//! simulated-annealing loop.
+//! Pure algorithm core — Camelot distance, energy arc, weighted cost,
+//! simulated annealing.
 //!
-//! **FCIS rule:** Identical to `crate::domain` — zero IO, zero async,
-//! zero adapter imports. The annealer takes borrows of fully-validated
-//! `Track` values and a seeded `rand::Rng`; it never sees `Option<Features>`.
+//! **FCIS rule:** zero IO, zero async, zero adapter imports.
+//! `anyhow::Result` is also banned here — all error surfaces are infallible
+//! in this module (the algorithm is pure-by-construction).
 
-// Submodules added in Phase 3: camelot, arc, cost, anneal.
+pub mod camelot;
+
+pub use camelot::CamelotTable;
