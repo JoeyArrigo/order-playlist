@@ -18,6 +18,9 @@ use crate::domain::{TrackId, TrackQuery};
 pub use cache::{Cache, CacheFile, CACHE_VERSION};
 pub use csv_io::{read_input, write_output, write_unresolved, Unresolved};
 
+#[cfg(feature = "musicbrainz")]
+pub use musicbrainz::MusicBrainzIsrcResolver;
+
 /// Outcome of resolving a single `TrackQuery`.
 ///
 /// Each query is mapped to either a successful resolution with an ID, or an
