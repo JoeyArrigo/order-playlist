@@ -1,0 +1,42 @@
+[package]
+name = "playlistize"
+version = "0.1.0"
+edition = "2021"
+description = "Reorder a CSV playlist to follow a target energy arc."
+publish = false
+
+[[bin]]
+name = "playlistize"
+path = "src/main.rs"
+
+[features]
+default = ["musicbrainz", "reccobeats"]
+musicbrainz = []
+reccobeats = []
+live-network = []
+
+[dependencies]
+clap = { version = "=4.6.1", features = ["derive"] }
+tokio = { version = "=1.52.3", features = ["full"] }
+reqwest = { version = "=0.13.3", default-features = false, features = ["json", "rustls"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.150"
+csv = "=1.4.0"
+rand = "=0.10.1"
+rand_chacha = "=0.10.0"
+thiserror = "=2.0.18"
+miette = { version = "=7.6.0", features = ["fancy"] }
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", features = ["env-filter", "fmt"] }
+anyhow = "=1.0.102"
+
+[dev-dependencies]
+proptest = "=1.11.0"
+insta = "=1.47.2"
+test-case = "=3.3.1"
+pretty_assertions = "=1.4.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

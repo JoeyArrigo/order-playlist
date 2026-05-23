@@ -2,3 +2,16 @@
 *.cache.json
 .env
 .DS_Store
+
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# insta snapshot review pending
+*.snap.new
+
+# IDE
+.vscode/
+.idea/
+*.iml
