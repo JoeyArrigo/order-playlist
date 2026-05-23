@@ -5,5 +5,6 @@
 //! review that introduces such an import blocks the merge.
 
 pub mod newtypes;
+pub mod track;
 
 pub use newtypes::{Bpm, DomainError, Mode, Normalized, PitchClass};
