@@ -43,6 +43,12 @@ impl TrackId {
         Self(id_string)
     }
 
+    /// Construct an empty `TrackId` used as an explicit-failure sentinel in caches.
+    /// Bypasses the warn in `new` because empty is the intended state.
+    pub fn empty() -> Self {
+        Self(String::new())
+    }
+
     /// Access the underlying ID string.
     pub fn get(&self) -> &str {
         &self.0

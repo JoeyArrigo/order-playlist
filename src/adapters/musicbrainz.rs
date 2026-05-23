@@ -38,15 +38,20 @@ use crate::errors::{MusicBrainzError, MusicBrainzErrorKind};
 pub const DEFAULT_BASE: &str = "https://musicbrainz.org/ws/2";
 
 /// Lucene special characters that must be backslash-escaped.
+///
+/// Note: Single `&` and `|` are NOT escaped because they are not special in Lucene
+/// (only the paired operators `&&` and `||` are). Real-world music titles rarely
+/// contain `&&` or `||` as Lucene operators, so we don't add pair-detection logic.
 const LUCENE_SPECIALS: &[char] = &[
-    '+', '-', '&', '|', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/',
+    '+', '-', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\', '/',
 ];
 
 /// Escape Lucene special characters in a query string by prepending backslashes.
 ///
-/// The Lucene query syntax reserves these characters: `+ - && || ! ( ) { } [ ] ^ " ~ * ? : \ /`.
+/// The Lucene query syntax reserves these characters: `+ - ! ( ) { } [ ] ^ " ~ * ? : \ /`.
 /// This function escapes each of them individually to ensure they are treated literally
-/// in the query.
+/// in the query. Note: `&&` and `||` are paired operators in Lucene, but single `&`
+/// and `|` are not special and are not escaped.
 pub(crate) fn escape_lucene(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 4);
     for c in s.chars() {
@@ -150,10 +155,6 @@ pub struct MusicBrainzIsrcResolver {
     /// API base URL. Production = `DEFAULT_BASE`; tests override
     /// via `new_with_base` to point at a wiremock server.
     base: String,
-    /// Pacing interval between outbound requests. Production = 1100 ms;
-    /// tests use `Duration::from_millis(0)` to keep the suite fast.
-    #[expect(dead_code)]
-    pacing: Duration,
 }
 
 impl MusicBrainzIsrcResolver {
@@ -177,7 +178,8 @@ impl MusicBrainzIsrcResolver {
     /// Create a resolver with custom base URL and pacing (for testing).
     ///
     /// Used by integration tests to point at a wiremock server and use
-    /// zero pacing so the test suite completes quickly.
+    /// minimal pacing (e.g., 1ms) so the test suite completes quickly.
+    /// Note: `tokio::time::interval(0)` panics; tests use 1ms as the minimum.
     pub fn new_with_base(
         cache: Arc<Mutex<Cache>>,
         user_agent: String,
@@ -195,7 +197,6 @@ impl MusicBrainzIsrcResolver {
             interval,
             search_limit: 10,
             base,
-            pacing,
         })
     }
 
@@ -360,7 +361,7 @@ impl Resolver for MusicBrainzIsrcResolver {
                 Ok(None) => {
                     {
                         let mut cache = self.cache.lock().await;
-                        cache.put_resolution(q.clone(), TrackId::new(""));
+                        cache.put_resolution(q.clone(), TrackId::empty());
                     }
                     tracing::warn!(
                         title = %q.title,
