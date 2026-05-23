@@ -5,10 +5,12 @@
 //! `anyhow::Result` is also banned here — all error surfaces are infallible
 //! in this module (the algorithm is pure-by-construction).
 
+pub mod anneal;
 pub mod arc;
 pub mod camelot;
 pub mod cost;
 
+pub use anneal::{optimize, AnnealConfig};
 pub use arc::EnergyArc;
 pub use camelot::CamelotTable;
 pub use cost::{CostContext, CostWeights};
