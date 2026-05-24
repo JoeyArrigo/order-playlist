@@ -3,6 +3,7 @@ name = "order_playlist"
 version = "0.1.0"
 edition = "2021"
 description = "Reorder a CSV playlist to follow a target energy arc."
+license = "MIT OR Apache-2.0"
 publish = false
 
 [[bin]]
