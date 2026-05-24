@@ -11,8 +11,12 @@
 //! }
 //! ```
 //!
-//! Atomic-write contract: `Cache::save_atomic()` writes to `path.json.tmp` first,
-//! then `std::fs::rename` into place. A mid-run SIGKILL leaves the existing file untouched.
+//! Atomic-write contract: `Cache::save_atomic()` writes to `path.json.tmp`,
+//! `fsync`s it, then `std::fs::rename`s into place. SIGKILL mid-run leaves
+//! the existing file untouched (rename is atomic at the syscall level).
+//! Durability across power loss / kernel panic is NOT guaranteed: the parent
+//! directory is not fsync'd after the rename, so on filesystems that do not
+//! journal directory metadata the rename's directory entry may be lost.
 
 use std::collections::BTreeMap;
 use std::path::Path;
