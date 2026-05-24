@@ -1,0 +1,310 @@
+// pattern: Imperative Shell
+// Reason: This module orchestrates I/O operations (cache reads, resolver calls,
+// feature source calls, file writes) with the pure algorithm core. Side effects
+// are inherent to the purpose (reading input, writing output, cache persistence).
+
+//! Orchestration: read CSV → cache-partition → resolve → fetch features → anneal → write outputs.
+//!
+//! Exposed to integration tests so the pipeline can be exercised with
+//! `InMemoryResolver` + `InMemoryFeatureSource` (or `PanicOnCall*` doubles).
+
+use rand::SeedableRng;
+use rand_chacha::ChaCha20Rng;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+use crate::adapters::{read_input, write_output, write_unresolved, Unresolved};
+use crate::adapters::{Cache, FeatureOutcome, FeatureSource, Resolution, Resolver};
+use crate::algo::{optimize, AnnealConfig, CamelotTable, CostContext, CostWeights, EnergyArc};
+use crate::cli::{
+    format_summary, render_arc,
+    report::{count_artist_clashes, SummaryInputs},
+    ResolvedArgs,
+};
+use crate::domain::{Track, TrackId, TrackQuery};
+
+/// Semantic exit codes (per design).
+///
+/// Each code corresponds to a specific class of error or success condition,
+/// allowing the shell and calling processes to distinguish between different
+/// failure modes (input validation, cache problems, network issues, etc.).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExitCode {
+    /// All tracks resolved, annealed, and written successfully.
+    Success = 0,
+    /// Invalid command-line arguments.
+    BadArgs = 2,
+    /// Input file error (missing file, invalid CSV, missing columns, zero rows, etc.).
+    InputError = 3,
+    /// Cache file error (corrupt, version mismatch, I/O failure).
+    CacheError = 4,
+    /// No tracks could be resolved from the input.
+    NothingResolved = 5,
+    /// Network requests exhausted retries (rate limited, persistent failures).
+    NetworkExhausted = 6,
+}
+
+/// Dependencies required by the orchestration: a resolver, feature source, and cache.
+///
+/// These are trait objects (plus the pre-loaded cache) to allow injection of different
+/// implementations (e.g., in-memory doubles for testing, real adapters for production).
+pub struct RunDeps {
+    /// Resolves track queries to ISRCs via MusicBrainz or in-memory stubs.
+    pub resolver: Box<dyn Resolver>,
+    /// Fetches audio features for resolved ISRCs via ReccoBeats or in-memory stubs.
+    pub feature_source: Box<dyn FeatureSource>,
+    /// Pre-loaded cache (single instance shared by main.rs and run.rs).
+    pub cache: Arc<Mutex<Cache>>,
+}
+
+/// Diagnostic payload returned alongside an `ExitCode`. Lets `main.rs`
+/// (or test harnesses) format their own user-facing message rather than
+/// having `run()` `eprintln!` from inside the library — keeps the
+/// CLI/lib separation that `cli/mod.rs` declares.
+#[derive(Debug, Clone, Default)]
+pub struct RunReport {
+    /// Human-readable message attached to a non-success exit (or empty).
+    pub message: String,
+}
+
+/// Orchestration entry point: read input → resolve → fetch features → anneal → write output.
+///
+/// This is the main orchestration function that coordinates I/O operations with the
+/// pure algorithm core. It reads the input CSV, partitions queries against the cache,
+/// resolves missing queries via the resolver, fetches features, anneals the ordering,
+/// and writes results to output files.
+///
+/// Non-fatal errors (input validation, cache problems, missing tracks) are converted to
+/// semantic exit codes and returned in the `RunReport`; fatal errors propagate as
+/// `miette::Report` via `?`.
+///
+/// # Returns
+///
+/// `Ok((exit_code, report))` on completion (whether successful or not; the exit code
+/// indicates which class of result). `Err(miette::Report)` only for truly unexpected
+/// errors that indicate a programming bug (should not happen in normal operation).
+pub async fn run(
+    args: ResolvedArgs,
+    deps: RunDeps,
+) -> Result<(ExitCode, RunReport), miette::Report> {
+    // 1. Read input.
+    let queries = match read_input(&args.input) {
+        Ok(q) => q,
+        Err(e) => {
+            return Ok((
+                ExitCode::InputError,
+                RunReport {
+                    message: e.to_string(),
+                },
+            ))
+        }
+    };
+    tracing::info!(count = queries.len(), input = %args.input.display(), "loaded input");
+
+    // 2. Use the pre-loaded cache from RunDeps.
+    let cache = deps.cache.clone();
+
+    // 3. AC7.1: Partition queries against the cache BEFORE calling the resolver.
+    //    Cached "explicit failure" (empty TrackId) → goes straight to `unresolved`.
+    //    Cached "success" (non-empty TrackId) → goes straight to `resolved_pairs`.
+    //    Anything else → into `to_resolve`, which the resolver sees only when non-empty.
+    let mut resolved_pairs: Vec<(TrackQuery, TrackId)> = Vec::new();
+    let mut unresolved: Vec<Unresolved> = Vec::new();
+    let mut to_resolve: Vec<TrackQuery> = Vec::new();
+    {
+        let cache_lock = cache.lock().await;
+        for q in queries {
+            match cache_lock.get_resolution(&q) {
+                Some(id) if !id.get().is_empty() => resolved_pairs.push((q, id.clone())),
+                Some(_) => {
+                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: cached prior failure");
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "cached: no ISRC on prior run".into(),
+                    });
+                }
+                None => to_resolve.push(q),
+            }
+        }
+    }
+
+    // Tracks whether any adapter signalled retry exhaustion. Used at the end
+    // to map `tracks.is_empty()` to `NetworkExhausted` instead of
+    // `NothingResolved` when the cause is transient rate-limiting.
+    let mut network_exhausted = false;
+
+    if !to_resolve.is_empty() {
+        for r in deps.resolver.resolve_many(&to_resolve).await {
+            match r {
+                Resolution::Resolved { query, id } => resolved_pairs.push((query, id)),
+                Resolution::Unresolved { query, reason } => {
+                    tracing::warn!(title = %query.title, artist = %query.artist, %reason, "unresolved");
+                    unresolved.push(Unresolved { query, reason });
+                }
+                Resolution::ExhaustedRetries { query } => {
+                    network_exhausted = true;
+                    tracing::warn!(
+                        title = %query.title,
+                        artist = %query.artist,
+                        "unresolved: resolver exhausted retries"
+                    );
+                    unresolved.push(Unresolved {
+                        query,
+                        reason: "resolver exhausted retries (rate limited)".into(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 4. AC7.1: Partition IDs against the feature cache. Same logic, applied
+    //    to feature lookup. Only un-cached IDs are passed to `features_for`.
+    let mut tracks: Vec<Track> = Vec::new();
+    let mut to_fetch: Vec<TrackId> = Vec::new();
+    let mut pending: Vec<(TrackQuery, TrackId)> = Vec::new();
+    {
+        let cache_lock = cache.lock().await;
+        for (q, id) in resolved_pairs {
+            match cache_lock.get_features(&id) {
+                Some(f) => tracks.push(Track {
+                    query: q,
+                    id,
+                    features: f.clone(),
+                }),
+                None => {
+                    pending.push((q, id.clone()));
+                    to_fetch.push(id);
+                }
+            }
+        }
+    }
+
+    if !to_fetch.is_empty() {
+        let fetched = deps.feature_source.features_for(&to_fetch).await;
+        // `fetched` is in the same order as `to_fetch`; zip with `pending`.
+        for ((q, id), (_, outcome)) in pending.into_iter().zip(fetched) {
+            match outcome {
+                FeatureOutcome::Found(f) => tracks.push(Track {
+                    query: q,
+                    id,
+                    features: f,
+                }),
+                FeatureOutcome::NotFound => {
+                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature lookup returned NotFound");
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "feature lookup returned NotFound".into(),
+                    });
+                }
+                FeatureOutcome::ExhaustedRetries => {
+                    network_exhausted = true;
+                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature source exhausted retries");
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "feature source exhausted retries (rate limited)".into(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 5. Save cache (best-effort).
+    {
+        let c = cache.lock().await;
+        if let Err(e) = c.save_atomic() {
+            tracing::warn!(error = %format!("{e:?}"), "cache save failed; continuing");
+        }
+    }
+
+    // 6. Always write unresolved.csv when there's content (AC4.1 + AC4.5).
+    if !unresolved.is_empty() {
+        if let Err(e) = write_unresolved(&args.unresolved, &unresolved) {
+            return Ok((
+                ExitCode::InputError,
+                RunReport {
+                    message: format!("failed to write unresolved.csv: {}", e),
+                },
+            ));
+        }
+    }
+
+    // 7. Bail out if nothing resolved. When at least one adapter exhausted
+    //    retries, report that as the more specific cause (`NetworkExhausted`,
+    //    exit 6) so the user knows to retry later rather than fix their input.
+    if tracks.is_empty() {
+        let (code, message) = if network_exhausted {
+            (
+                ExitCode::NetworkExhausted,
+                "no tracks resolved; provider rate-limited and exhausted retries (retry later)"
+                    .to_string(),
+            )
+        } else {
+            (
+                ExitCode::NothingResolved,
+                "no tracks resolved; nothing to anneal".to_string(),
+            )
+        };
+        return Ok((code, RunReport { message }));
+    }
+
+    // 8. Anneal.
+    let ctx = CostContext {
+        tracks: &tracks,
+        weights: CostWeights {
+            artist_window: args.artist_window,
+            ..Default::default()
+        },
+        arc: EnergyArc,
+        camelot_table: CamelotTable::new(),
+    };
+    let initial: Vec<usize> = (0..tracks.len()).collect();
+    let before_cost = ctx.total_cost(&initial);
+    let before_arc_dev = compute_arc_dev(&tracks, &initial);
+
+    let mut rng = ChaCha20Rng::seed_from_u64(args.seed);
+    let ordering = optimize(initial, &ctx, &AnnealConfig::default(), &mut rng);
+    let after_cost = ctx.total_cost(&ordering);
+    let after_arc_dev = compute_arc_dev(&tracks, &ordering);
+
+    // 9. Write output CSV.
+    if let Err(e) = write_output(&args.output, &ordering, &tracks) {
+        return Ok((
+            ExitCode::InputError,
+            RunReport {
+                message: format!("failed to write output CSV: {}", e),
+            },
+        ));
+    }
+
+    // 10. Print chart + summary to stdout. (run.rs is permitted to write
+    //     to stdout for the deliverables; only stderr error printing is
+    //     forbidden — see RunReport above.)
+    print!("{}", render_arc(&tracks, &ordering, 12));
+    let breakdown = ctx.cost_breakdown(&ordering);
+    let summary = format_summary(&SummaryInputs {
+        resolved: tracks.len(),
+        unresolved: unresolved.len(),
+        unresolved_path: &args.unresolved,
+        seed: args.seed,
+        seed_was_supplied: args.seed_was_supplied,
+        before_cost,
+        after_cost,
+        before_arc_dev,
+        after_arc_dev,
+        cost_breakdown: breakdown,
+        remaining_clashes: count_artist_clashes(&tracks, &ordering, args.artist_window),
+    });
+    print!("{}", summary);
+
+    Ok((ExitCode::Success, RunReport::default()))
+}
+
+fn compute_arc_dev(tracks: &[Track], ordering: &[usize]) -> f32 {
+    let arc = EnergyArc;
+    let n = ordering.len();
+    ordering
+        .iter()
+        .enumerate()
+        .map(|(i, &idx)| arc.deviation_cost(i, n, tracks[idx].features.energy))
+        .sum()
+}

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, playlist-arc-v1]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: default
+            flags: ""
+          - name: musicbrainz+reccobeats
+            flags: "--no-default-features --features musicbrainz,reccobeats"
+          - name: musicbrainz
+            flags: "--no-default-features --features musicbrainz"
+          - name: reccobeats
+            flags: "--no-default-features --features reccobeats"
+          - name: bare-bones
+            flags: "--no-default-features"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: fmt
+        run: cargo fmt --check
+        if: matrix.name == 'default'
+
+      - name: clippy
+        run: cargo clippy --all-targets ${{ matrix.flags }} -- -D warnings
+        if: matrix.name != 'bare-bones'  # bare-bones has no targets to lint here
+
+      - name: build
+        run: cargo build ${{ matrix.flags }}
+
+      - name: test
+        run: cargo test ${{ matrix.flags }}
+        if: matrix.name != 'bare-bones'  # no tests without adapters
+
+      - name: smoke-test bare-bones startup error (AC8.3)
+        if: matrix.name == 'bare-bones'
+        run: |
+          output=$(./target/debug/order_playlist --input /nonexistent --output /tmp/out.csv 2>&1 || true)
+          echo "$output" | grep -q "no resolver/feature source compiled in" || (echo "AC8.3 failed: missing expected error" && exit 1)

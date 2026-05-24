@@ -1,91 +1,178 @@
-# party-playlist — starter scaffolding
+# order_playlist
 
-This directory contains the seed material to start the project under the
-`ed3d-plan-and-execute` Claude Code workflow.
+A small Rust CLI that reorders a CSV playlist to follow a target energy
+arc (slow start → peak in the back half → mellow finish). It pulls audio
+features from public APIs, runs simulated annealing over the track order
+against a cost function (arc deviation, Camelot key compatibility, tempo
+continuity, energy continuity, artist spacing), and writes the result
+back as CSV.
 
-## What's here
+## Quick start
+
+```bash
+cargo build --release
+
+./target/release/order_playlist \
+  --input  playlist.csv \
+  --output reordered.csv \
+  --musicbrainz-contact you@example.com \
+  --seed 42
+```
+
+The first run is online (MusicBrainz + ReccoBeats); MusicBrainz throttles
+to ~1 req/sec so expect ~1 minute per 60 tracks. Subsequent runs read
+from `playlist.cache.json` next to the input and are instant + offline.
+
+## Input
+
+A CSV with `title,artist` columns. Header row required.
+
+```csv
+title,artist
+Get Lucky,Daft Punk
+Dancing Queen,ABBA
+```
+
+## Outputs
+
+| File | Contents |
+|---|---|
+| `reordered.csv` | Resolved tracks in the new order, with `position, title, artist, tempo, key, mode, energy, danceability, valence, loudness, isrc` |
+| `unresolved.csv` | Tracks that couldn't be resolved, with a `reason` column |
+| `<input>.cache.json` | Feature cache. Safe to delete; will be rebuilt |
+
+stdout also gets an ASCII energy chart and a summary:
 
 ```
-party-playlist/
-├── README.md                              ← you are here
-├── SEED.md                                ← paste into /start-design-plan
-└── .ed3d/
-    ├── design-plan-guidance.md            ← auto-loaded during design
-    └── implementation-plan-guidance.md    ← auto-loaded during planning + review
+Energy arc
+0.9 |                            #   #   # #      #
+0.7 |      ## # ##    #    # #   # ###   #####   ##
+0.5 |      #### ##### # # ############  ######## ##
+0.3 |########## ####################################
+    +-----------------------------------------------
+     1...
+
+Summary
+  resolved:     47
+  unresolved:  132
+  seed:        42 (supplied)
+  total cost:  before 478.414  after 57.430
+  artist clashes remaining: 0
 ```
 
-## How to start
+## Caveats: resolution rate
 
-1. Copy this whole directory to wherever you keep projects:
-   ```
-   cp -r party-playlist ~/code/
-   cd ~/code/party-playlist
-   git init && git add . && git commit -m "Initial scaffolding"
-   ```
+Track resolution depends on:
 
-2. Initialize the Rust project alongside the existing files:
-   ```
-   cargo init --name party-playlist
-   git add . && git commit -m "cargo init"
-   ```
+1. MusicBrainz having a recording for your `title + artist` query
+2. That recording having an attached ISRC
+3. ReccoBeats having audio features for that ISRC
 
-3. Install the ed3d marketplace and plugins (one-time, in Claude Code):
-   ```
-   /plugin marketplace add https://github.com/ed3dai/ed3d-plugins.git
-   /plugin install ed3d-plan-and-execute@ed3d-plugins
-   /plugin install ed3d-research-agents@ed3d-plugins
-   /plugin install ed3d-house-style@ed3d-plugins
-   /plugin install ed3d-extending-claude@ed3d-plugins
-   ```
+In practice, expect **30–60% of a typical pop/hip-hop library to
+resolve**. Common reasons for misses:
 
-4. From inside this directory, launch Claude Code and start the design phase:
-   ```
-   claude
-   ```
-   then inside Claude Code:
-   ```
-   /start-design-plan
-   ```
-   When it asks for context, paste the body of `SEED.md`. The
-   `.ed3d/design-plan-guidance.md` file loads automatically — you don't need
-   to mention it.
+- Live versions, remasters, deluxe-edition reissues, and feature-credit
+  variants often lack ISRCs on MusicBrainz
+- ReccoBeats's feature DB doesn't cover every ISRC, even for hits
+- MusicBrainz rate-limits aggressively; tracks rejected with
+  `musicbrainz error: RateLimit` will retry on the next run (failures
+  from rate limiting are not cached)
 
-5. Follow the workflow as the plugin instructs. Roughly:
-   - Design phase produces `docs/design-plans/YYYY-MM-DD-party-playlist.md`.
-   - `/clear`, then `/start-implementation-plan @docs/design-plans/...md .`
-   - `/clear`, then `/execute-implementation-plan @docs/implementation-plans/YYYY-MM-DD-party-playlist`.
+Stripping qualifiers like `(Live)`, `(Deluxe Edition)`, `(2024 Remaster)`
+from your input materially improves match rates.
 
-## Prerequisites before you start coding
+## Apple Music workflow
 
-- A Spotify developer app — register at
-  https://developer.spotify.com/dashboard. You need the Client ID and
-  Client Secret. Drop them in a `.env` file (which `.gitignore` should
-  cover — the implementation plan will set this up).
-- A small input CSV. Even 10 hand-typed songs as `data/input.csv` with
-  `title,artist` columns works to bootstrap.
+Music.app (Mac) → select playlist → **File → Library → Export Playlist…**
+→ format **Plain Text**. Convert the tab-separated export to the
+`title,artist` CSV:
 
-## On the Apple Music side
+```bash
+tr '\r' '\n' < export.txt | awk -F'\t' '
+NR==1 {
+  for (i=1;i<=NF;i++) { if ($i=="Name") n=i; if ($i=="Artist") a=i }
+  print "title,artist"; next
+}
+NF >= 2 && $n != "" {
+  t=$n; ar=$a
+  gsub(/"/,"\"\"",t); gsub(/"/,"\"\"",ar)
+  printf "\"%s\",\"%s\"\n", t, ar
+}' > playlist.csv
+```
 
-v1 is CSV in, CSV out. To get songs out of Apple Music: highlight tracks
-in the desktop Music app, File > Library > Export Playlist (XML or
-text-tab format), then convert to CSV. There are also tools like SongShift
-and Soor. None are great; this is the friction that motivates the v2
-MCP integration.
+To get the reordered playlist back into Music.app, export the original
+playlist as **XML** as well, then use a small script to rewrite the
+playlist's track-order list using the resolved IDs and import the new
+XML via **File → Library → Import Playlist…**.
 
-For v2 (not in scope for the design plan you're about to start), the plan
-is to integrate `epheterson/applemusic-mcp` so Claude Code can pull and
-push playlists directly. Keep that boundary clean during v1 design — the
-algorithm should not assume anything about how tracks arrive.
+## Build & test
 
-## Why this structure instead of a single CLAUDE.md
+```bash
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test                                  # default features
+cargo test --no-default-features            # proves core builds without adapters
+cargo build --release
+```
 
-The `ed3d-plan-and-execute` plugin uses a research-plan-implement loop.
-Design docs describe what+why at the component level and get committed
-to git. Implementation plans are generated fresh against the current
-codebase right before execution. Putting standing project rails in
-`.ed3d/` keeps them out of the design doc (which is per-feature) and
-the implementation plan (which is per-execution).
+Live-network tests (real HTTP against MusicBrainz / ReccoBeats) are
+gated behind the `live-network` feature:
 
-A CLAUDE.md may end up being useful later for cross-cutting reminders,
-but the plugin's `project-claude-librarian` agent will manage it for
-you. Don't write one up front.
+```bash
+cargo test --features live-network,musicbrainz,reccobeats
+```
+
+## CLI reference
+
+```
+order_playlist --input <CSV> --output <CSV> [options]
+
+  --input <PATH>                Input CSV with title,artist columns
+  --output <PATH>               Output CSV (resolved + reordered)
+  --unresolved <PATH>           Sidecar CSV [default: unresolved.csv next to output]
+  --cache <PATH>                Feature cache JSON [default: <input>.cache.json]
+  --seed <U64>                  RNG seed for reproducible runs [default: system time]
+  --artist-window <U8>          Window for artist-spacing constraint, 0 disables [default: 4]
+  --musicbrainz-contact <STR>   Contact string for MusicBrainz UA [default: anonymous@example.com]
+  -v, --verbose                 -v=DEBUG, -vv=TRACE [default: INFO]
+```
+
+## Repository layout
+
+```
+src/
+  domain/     pure types (tracks, Camelot codes, features)
+  algo/       pure cost / annealer / arc functions
+  adapters/   IO: csv, cache, musicbrainz, reccobeats
+  cli/        clap args, ASCII chart, summary report
+  run.rs      orchestration entry point (library-visible)
+  main.rs     binary entry: tracing + clap + std::process::exit
+tests/
+  *.rs        integration tests (cache, exit codes, zero-network, etc.)
+  fixtures/   small_party.csv and its precomputed cache
+docs/
+  design-plans/         per-feature design docs
+  implementation-plans/ per-feature task plans
+  test-plans/           manual test plans
+```
+
+Architectural rules (FCIS layering, determinism invariants, exit-code
+contract) live in `CLAUDE.md`.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 2 | Bad CLI arguments |
+| 3 | Input CSV missing or malformed |
+| 4 | Cache corrupt or schema mismatch |
+| 5 | Nothing resolved from input |
+| 6 | Adapter exhausted retries (rate limit, etc.) |
+
+## Status
+
+v1. Single feature set (MusicBrainz + ReccoBeats), CSV in, CSV out. The
+codebase is structured so adding a new feature source (Spotify, etc.) is
+a new adapter behind a feature flag — `domain/` and `algo/` should not
+change.
