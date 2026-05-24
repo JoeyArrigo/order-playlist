@@ -132,3 +132,46 @@ async fn zero_rows_returns_input_error() {
         report.message
     );
 }
+
+#[test]
+fn corrupt_cache_load_or_exit_returns_cache_error() {
+    let dir = TempDir::new().unwrap();
+    let cache_path = dir.path().join("cache.json");
+
+    // Write invalid JSON to the cache file
+    std::fs::write(&cache_path, b"{ not valid json").unwrap();
+
+    let result = playlistize::load_cache_or_exit_code(&cache_path);
+    match result {
+        Err((exit, _msg)) => assert_eq!(
+            exit,
+            ExitCode::CacheError,
+            "corrupt cache should map to CacheError exit code"
+        ),
+        Ok(_) => panic!("expected CacheError for corrupt cache"),
+    }
+}
+
+#[test]
+fn version_mismatch_cache_load_or_exit_returns_cache_error() {
+    let dir = TempDir::new().unwrap();
+    let cache_path = dir.path().join("cache.json");
+
+    // Write valid JSON but with wrong version
+    let invalid_cache = serde_json::json!({
+        "version": 999,
+        "resolutions": [],
+        "features": {}
+    });
+    std::fs::write(&cache_path, serde_json::to_string(&invalid_cache).unwrap()).unwrap();
+
+    let result = playlistize::load_cache_or_exit_code(&cache_path);
+    match result {
+        Err((exit, _msg)) => assert_eq!(
+            exit,
+            ExitCode::CacheError,
+            "version mismatch should map to CacheError exit code"
+        ),
+        Ok(_) => panic!("expected CacheError for version mismatch"),
+    }
+}

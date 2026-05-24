@@ -31,11 +31,15 @@ async fn main() -> miette::Result<()> {
     }
 
     let cache_path = args.cache.clone();
-    let cache = Arc::new(Mutex::new(
-        Cache::load(&cache_path).map_err(miette::Report::new)?,
-    ));
+    let cache = match playlistize::load_cache_or_exit_code(&cache_path) {
+        Ok(c) => Arc::new(Mutex::new(c)),
+        Err((exit_code, message)) => {
+            eprintln!("error: {}", message);
+            std::process::exit(exit_code as i32);
+        }
+    };
 
-    let deps = build_deps(&args, cache.clone(), cache.clone())?;
+    let deps = build_deps(&args, cache)?;
     let (exit, report) = run(args, deps).await?;
     if !report.message.is_empty() {
         eprintln!("error: {}", report.message);
@@ -67,7 +71,6 @@ fn init_tracing(verbose: u8) {
 fn build_deps(
     args: &playlistize::cli::ResolvedArgs,
     cache: Arc<Mutex<Cache>>,
-    cache_for_run: Arc<Mutex<Cache>>,
 ) -> miette::Result<RunDeps> {
     #[cfg(all(feature = "musicbrainz", feature = "reccobeats"))]
     {
@@ -91,7 +94,7 @@ fn build_deps(
         Ok(RunDeps {
             resolver,
             feature_source,
-            cache: cache_for_run,
+            cache,
         })
     }
 
