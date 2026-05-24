@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — file IO / HTTP / cache persistence
+
 //! Versioned JSON sidecar that stores resolved IDs and audio features.
 //!
 //! File schema (incremented on any breaking change):
@@ -156,6 +158,7 @@ impl Cache {
     /// If step 3 or 4 fails, the existing file at `path` is untouched.
     /// If step 5 fails, the temp file is left behind (caller may clean up).
     pub fn save_atomic(&self) -> Result<(), CacheError> {
+        // TODO(v2): custom Serialize impl to skip CacheFile intermediate clone
         let file = CacheFile {
             version: CACHE_VERSION,
             resolutions: self

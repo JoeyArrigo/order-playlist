@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! Simulated-annealing loop over playlist permutations.
 //!
 //! The loop is pure: takes a seeded `R: Rng`, returns a permutation.

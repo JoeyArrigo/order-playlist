@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure domain types, no IO/async
+
 //! Pure domain types — newtypes, identifiers, value objects.
 //!
 //! **FCIS rule:** This module MUST NOT import `std::fs`, `std::io`, `tokio`,

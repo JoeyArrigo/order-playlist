@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure domain types, no IO/async
+
 //! Domain newtypes with validation baked into constructors.
 //!
 //! `Bpm` and `PitchClass` use fallible `new()` constructors that return

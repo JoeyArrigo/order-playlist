@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — module aggregation + load_cache_or_exit_code helper
+
 //! `playlistize` library crate.
 //!
 //! Modules are added as later phases fill them in. Re-exports here let

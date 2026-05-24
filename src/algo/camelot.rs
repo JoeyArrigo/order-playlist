@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! 24×24 harmonic-distance lookup over Camelot codes.
 //!
 //! Distances follow the DJ practitioner convention:

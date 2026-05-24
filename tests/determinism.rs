@@ -46,47 +46,72 @@ async fn two_runs_same_seed_produce_byte_identical_unresolved() {
 
 #[tokio::test]
 async fn different_seeds_may_produce_different_orderings() {
-    // AC5.3: Different seeds can produce different orderings, or they may converge
-    // to the same optimum if the cost landscape has a dominant minimum.
-    // Both behaviors are valid. We verify that the RNG seeded differently by
-    // checking that runs with the same seed are always identical (AC5.1).
-    // This test asserts that different seeds at least complete successfully.
-    let a = run_small_party_with_seed_and_skip_and_window(1, &[], 4).await;
-    let b = run_small_party_with_seed_and_skip_and_window(999999, &[], 4).await;
+    // AC5.3: Different seeds may produce different orderings (though they may converge
+    // to the same optimum if the cost landscape has a dominant minimum).
+    // This test tries multiple seed pairs and verifies that AT LEAST ONE pair
+    // produces different orderings, confirming the RNG seed has an observable effect.
+    // If all pairs converge to the same ordering, that's also valid (dominant optimum),
+    // but we verify by checking if any pair differs; at least one should.
 
-    // Both runs must complete successfully
-    assert_eq!(
-        a.exit,
-        ExitCode::Success,
-        "seed=1 should complete successfully"
-    );
-    assert_eq!(
-        b.exit,
-        ExitCode::Success,
-        "seed=999999 should complete successfully"
-    );
+    let pairs = [(1u64, 99999u64), (42u64, 1000000u64), (7u64, 12345u64)];
 
-    // Both output files should exist and contain valid data (header + 10 rows)
-    let bytes_a = std::fs::read(&a.output).unwrap();
-    let bytes_b = std::fs::read(&b.output).unwrap();
+    let mut any_differ = false;
+    for (s1, s2) in pairs {
+        let a = run_small_party_with_seed_and_skip_and_window(s1, &[], 4).await;
+        let b = run_small_party_with_seed_and_skip_and_window(s2, &[], 4).await;
 
-    assert!(!bytes_a.is_empty(), "seed=1 output should not be empty");
+        assert_eq!(
+            a.exit,
+            ExitCode::Success,
+            "seed={} should complete successfully",
+            s1
+        );
+        assert_eq!(
+            b.exit,
+            ExitCode::Success,
+            "seed={} should complete successfully",
+            s2
+        );
+
+        let bytes_a = std::fs::read(&a.output).unwrap();
+        let bytes_b = std::fs::read(&b.output).unwrap();
+
+        assert!(
+            !bytes_a.is_empty(),
+            "seed={} output should not be empty",
+            s1
+        );
+        assert!(
+            !bytes_b.is_empty(),
+            "seed={} output should not be empty",
+            s2
+        );
+
+        // Verify both have the correct number of lines (header + 10 rows)
+        let lines_a: Vec<_> = std::str::from_utf8(&bytes_a).unwrap().lines().collect();
+        let lines_b: Vec<_> = std::str::from_utf8(&bytes_b).unwrap().lines().collect();
+        assert_eq!(
+            lines_a.len(),
+            11,
+            "seed={} output should have header + 10 rows",
+            s1
+        );
+        assert_eq!(
+            lines_b.len(),
+            11,
+            "seed={} output should have header + 10 rows",
+            s2
+        );
+
+        // Check if this pair produces different orderings
+        if bytes_a != bytes_b {
+            any_differ = true;
+            break;
+        }
+    }
+
     assert!(
-        !bytes_b.is_empty(),
-        "seed=999999 output should not be empty"
-    );
-
-    // Verify both have the correct number of lines
-    let lines_a: Vec<_> = std::str::from_utf8(&bytes_a).unwrap().lines().collect();
-    let lines_b: Vec<_> = std::str::from_utf8(&bytes_b).unwrap().lines().collect();
-    assert_eq!(
-        lines_a.len(),
-        11,
-        "seed=1 output should have header + 10 rows"
-    );
-    assert_eq!(
-        lines_b.len(),
-        11,
-        "seed=999999 output should have header + 10 rows"
+        any_differ,
+        "AC5.3: at least one seed pair should produce different orderings (RNG must affect optimization)"
     );
 }

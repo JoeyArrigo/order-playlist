@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — CLI presentation (clap args, ASCII chart, summary report)
+
 //! CLI argument parser using `clap` derive.
 //!
 //! Defaults are filled in by `Args::resolve()` after parsing — clap

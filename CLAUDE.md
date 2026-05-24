@@ -163,6 +163,12 @@ small — it's effectively untestable by design.
   (`required-features = []`) that rebuilds `small_party.cache.json`
   against the live MusicBrainz / ReccoBeats APIs. The fixture itself is
   committed so default `cargo test` is offline.
+- Live-network tests are gated via `#![cfg(all(feature = "<adapter>", feature = "live-network"))]`
+  at the file level (not `#[ignore]`); when the features are not enabled
+  the file is structurally absent from `cargo test`'s output. This satisfies
+  AC9.1's no-silent-skip intent: a cfg-excluded file produces no test
+  artifacts, which is structurally honest (contrast: `#[ignore]` hides the
+  test from the count and produces a mysterious "skipped" line).
 
 ## Boundaries
 

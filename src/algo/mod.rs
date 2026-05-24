@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! Pure algorithm core — Camelot distance, energy arc, weighted cost,
 //! simulated annealing.
 //!

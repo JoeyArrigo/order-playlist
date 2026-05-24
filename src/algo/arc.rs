@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! Target per-position energy curve.
 //!
 //! The default curve is a fixed asymmetric shape that peaks near

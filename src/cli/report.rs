@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — CLI presentation (clap args, ASCII chart, summary report)
+
 //! Summary report printed to stdout at end of run.
 //!
 //! Format (example):
@@ -104,6 +106,9 @@ pub fn format_summary(s: &SummaryInputs<'_>) -> String {
 
 /// Helper to count artist clashes in an ordering (used by orchestration
 /// for the `remaining_clashes` field; verifies AC3.4 reporting).
+///
+/// Intentionally duplicates the artist-clash branch in algo/cost.rs::cost_breakdown
+/// to avoid coupling presentation to algo internals; verify both stay in sync.
 pub fn count_artist_clashes(tracks: &[Track], ordering: &[usize], window: u8) -> usize {
     if window == 0 {
         return 0;

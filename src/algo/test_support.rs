@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! Shared test support helpers for the algo module.
 
 #[cfg(test)]

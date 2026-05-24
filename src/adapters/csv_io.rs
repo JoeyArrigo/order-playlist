@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — file IO / HTTP / cache persistence
+
 //! CSV input/output adapters for track queries, resolved tracks, and unresolved sidecars.
 
 use std::path::Path;

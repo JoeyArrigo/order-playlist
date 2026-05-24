@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure algorithm, no IO/async
+
 //! Weighted cost function over a playlist ordering.
 //!
 //! The cost is a sum of:

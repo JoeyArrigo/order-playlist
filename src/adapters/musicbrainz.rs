@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — file IO / HTTP / cache persistence
+
 //! MusicBrainz WS2 resolver. Gated by the `musicbrainz` Cargo feature.
 //!
 //! For each TrackQuery:

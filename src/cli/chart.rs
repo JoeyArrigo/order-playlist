@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — CLI presentation (clap args, ASCII chart, summary report)
+
 //! ASCII energy-arc chart for stdout.
 //!
 //! Deterministic output: snapshot-tested via `insta`. Renders the

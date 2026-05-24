@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — file IO / HTTP / cache persistence
+
 //! ReccoBeats audio-features adapter. Gated by the `reccobeats` Cargo feature.
 //!
 //! Resolves track IDs (ISRCs) to their audio features via the ReccoBeats API.

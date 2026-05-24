@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure domain types, no IO/async
+
 //! Camelot wheel mapping for harmonic mixing.
 //!
 //! Maps musical key + mode to a 24-position notation used by DJs for harmonic

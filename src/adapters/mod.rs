@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — file IO / HTTP / cache persistence
+
 //! Impure adapter shell — file IO, HTTP, JSON cache.
 //!
 //! Adapter trait definitions and feature-gated implementations live here.

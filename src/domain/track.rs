@@ -1,3 +1,5 @@
+// pattern: Functional Core — pure domain types, no IO/async
+
 //! Track types and identifiers for the domain.
 //!
 //! These types are the only thing the algorithm sees. Adapters collapse

@@ -1,3 +1,5 @@
+// pattern: Imperative Shell — CLI presentation (clap args, ASCII chart, summary report)
+
 //! CLI presentation — clap argument structs, ASCII chart, summary
 //! report formatter.
 //!

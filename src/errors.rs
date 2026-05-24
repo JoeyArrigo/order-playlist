@@ -1,3 +1,5 @@
+// pattern: Functional Core — error type definitions (no IO)
+
 //! Structured error types. Concrete variants land in later phases:
 //! `InputError` (Phase 4), `CacheError` (Phase 4), `AdapterError` (Phases 5–6).
 //!
