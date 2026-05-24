@@ -16,7 +16,7 @@ pub enum InputError {
     /// Input file does not exist at the given path.
     #[error("input file not found: {path}")]
     #[diagnostic(
-        code(playlistize::input::not_found),
+        code(order_playlist::input::not_found),
         help("verify the path exists and is readable")
     )]
     NotFound { path: PathBuf },
@@ -24,7 +24,7 @@ pub enum InputError {
     /// Output parent directory does not exist.
     #[error("output parent directory does not exist: {parent}")]
     #[diagnostic(
-        code(playlistize::input::missing_parent),
+        code(order_playlist::input::missing_parent),
         help("create the directory before running, or choose a path whose parent exists")
     )]
     MissingParentDir { parent: PathBuf },
@@ -32,7 +32,7 @@ pub enum InputError {
     /// Required CSV column(s) are missing from the header.
     #[error("missing required column(s): {missing:?}")]
     #[diagnostic(
-        code(playlistize::input::missing_column),
+        code(order_playlist::input::missing_column),
         help("input CSV must have at minimum 'title' and 'artist' columns")
     )]
     MissingColumn {
@@ -46,14 +46,14 @@ pub enum InputError {
     /// Input CSV has no data rows (header only or empty file).
     #[error("input contained zero data rows")]
     #[diagnostic(
-        code(playlistize::input::no_rows),
+        code(order_playlist::input::no_rows),
         help("the file has a valid header but no tracks; add at least one row")
     )]
     NoRows { path: PathBuf },
 
     /// CSV parsing error at a specific line.
     #[error("CSV parse error at line {line}: {message}")]
-    #[diagnostic(code(playlistize::input::csv_parse))]
+    #[diagnostic(code(order_playlist::input::csv_parse))]
     Csv {
         line: u64,
         message: String,
@@ -63,7 +63,7 @@ pub enum InputError {
 
     /// IO error reading input or writing output.
     #[error("IO error reading {path}")]
-    #[diagnostic(code(playlistize::input::io))]
+    #[diagnostic(code(order_playlist::input::io))]
     Io {
         path: PathBuf,
         #[source]
@@ -79,9 +79,9 @@ pub enum CacheError {
     /// Cache schema version does not match the current version.
     #[error("cache version mismatch: file has version {found}, expected {expected}")]
     #[diagnostic(
-        code(playlistize::cache::version_mismatch),
+        code(order_playlist::cache::version_mismatch),
         help(
-            "delete the cache file or upgrade `playlistize`; cache schema changed between versions"
+            "delete the cache file or upgrade `order_playlist`; cache schema changed between versions"
         )
     )]
     VersionMismatch { found: u32, expected: u32 },
@@ -89,7 +89,7 @@ pub enum CacheError {
     /// Cache file is corrupted or invalid JSON.
     #[error("cache file is corrupt: {message}")]
     #[diagnostic(
-        code(playlistize::cache::corrupt),
+        code(order_playlist::cache::corrupt),
         help("delete the cache file and rerun; resolved features will be re-fetched")
     )]
     Corrupt {
@@ -100,7 +100,7 @@ pub enum CacheError {
 
     /// IO error reading or writing the cache file.
     #[error("IO error on cache file {path}")]
-    #[diagnostic(code(playlistize::cache::io))]
+    #[diagnostic(code(order_playlist::cache::io))]
     Io {
         path: PathBuf,
         #[source]
@@ -114,7 +114,7 @@ pub enum CacheError {
 /// reqwest error (for network errors, not for application-level failures).
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 #[error("ReccoBeats {kind:?} for {ids:?}")]
-#[diagnostic(code(playlistize::adapter::reccobeats::error))]
+#[diagnostic(code(order_playlist::adapter::reccobeats::error))]
 pub struct ReccoBeatsError {
     /// Classification of the failure (network, parse, throttled).
     pub kind: ReccoBeatsErrorKind,
@@ -147,12 +147,12 @@ pub enum ReccoBeatsErrorKind {
 pub enum AdapterError {
     /// MusicBrainz-specific resolution failure.
     #[error("MusicBrainz error: {0}")]
-    #[diagnostic(code(playlistize::adapter::musicbrainz))]
+    #[diagnostic(code(order_playlist::adapter::musicbrainz))]
     MusicBrainz(#[from] MusicBrainzError),
 
     /// ReccoBeats-specific audio-features failure.
     #[error("ReccoBeats error: {0}")]
-    #[diagnostic(code(playlistize::adapter::reccobeats))]
+    #[diagnostic(code(order_playlist::adapter::reccobeats))]
     ReccoBeats(#[from] ReccoBeatsError),
 
     /// Rate limiting encountered on an adapter endpoint.
@@ -161,7 +161,7 @@ pub enum AdapterError {
     /// Exhausted retries after rate limiting.
     #[error("rate limited; exhausted retries on {endpoint}")]
     #[diagnostic(
-        code(playlistize::adapter::rate_limited),
+        code(order_playlist::adapter::rate_limited),
         help("re-run later; consider authenticated MusicBrainz access for higher quota")
     )]
     RateLimited { endpoint: String },
@@ -174,7 +174,7 @@ pub enum AdapterError {
 /// "no candidates found").
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 #[error("MusicBrainz {kind:?} for {query:?}")]
-#[diagnostic(code(playlistize::adapter::musicbrainz::error))]
+#[diagnostic(code(order_playlist::adapter::musicbrainz::error))]
 pub struct MusicBrainzError {
     /// Classification of the failure (network, parse, rate limit, no candidates).
     pub kind: MusicBrainzErrorKind,

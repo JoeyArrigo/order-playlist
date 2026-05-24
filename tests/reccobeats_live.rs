@@ -4,8 +4,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use playlistize::adapters::{Cache, FeatureSource, ReccoBeatsFeatures};
-use playlistize::domain::TrackId;
+use order_playlist::adapters::{Cache, FeatureSource, ReccoBeatsFeatures};
+use order_playlist::domain::TrackId;
 
 #[tokio::test]
 async fn fetches_features_for_known_isrc() {

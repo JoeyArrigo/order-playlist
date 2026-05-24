@@ -3,9 +3,11 @@ mod support;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use playlistize::cli::ResolvedArgs;
-use playlistize::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
-use playlistize::run::{run, ExitCode, RunDeps};
+use order_playlist::cli::ResolvedArgs;
+use order_playlist::domain::{
+    Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery,
+};
+use order_playlist::run::{run, ExitCode, RunDeps};
 
 use support::in_memory::{InMemoryFeatureSource, InMemoryResolver};
 
@@ -68,7 +70,7 @@ async fn partial_unresolved_exits_zero_and_writes_sidecar() {
         musicbrainz_contact: "test@example.com".into(),
     };
     let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     let (exit, _report) = run(
@@ -91,7 +93,7 @@ async fn partial_unresolved_exits_zero_and_writes_sidecar() {
     assert_eq!(sidecar.lines().count(), 4); // header + 3 unresolved
 
     // AC4.5: re-feed the sidecar as input — read_input should accept it.
-    let queries = playlistize::adapters::read_input(&unresolved_path).unwrap();
+    let queries = order_playlist::adapters::read_input(&unresolved_path).unwrap();
     assert_eq!(queries.len(), 3);
 }
 
@@ -116,7 +118,7 @@ async fn all_unresolved_exits_5() {
         musicbrainz_contact: "test@example.com".into(),
     };
     let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     let (exit, _report) = run(

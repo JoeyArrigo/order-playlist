@@ -1,6 +1,6 @@
 mod support;
 
-use playlistize::run::ExitCode;
+use order_playlist::run::ExitCode;
 use support::common::{
     run_small_party_with_seed, run_small_party_with_seed_and_skip,
     run_small_party_with_seed_and_skip_and_window,

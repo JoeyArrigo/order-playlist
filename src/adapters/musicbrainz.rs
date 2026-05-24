@@ -166,7 +166,7 @@ impl MusicBrainzIsrcResolver {
     /// within a single run. The caller (Phase 7) is responsible for calling
     /// `Cache::save_atomic` once at the end of the run.
     ///
-    /// `user_agent` MUST match the format `playlistize/<version> (<contact>)`.
+    /// `user_agent` MUST match the format `order_playlist/<version> (<contact>)`.
     /// Missing/generic UAs are aggressively throttled by MusicBrainz.
     pub fn new(cache: Arc<Mutex<Cache>>, user_agent: String) -> Result<Self, reqwest::Error> {
         Self::new_with_base(

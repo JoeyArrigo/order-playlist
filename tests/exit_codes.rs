@@ -3,8 +3,8 @@ mod support;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use playlistize::cli::ResolvedArgs;
-use playlistize::run::{run, ExitCode, RunDeps};
+use order_playlist::cli::ResolvedArgs;
+use order_playlist::run::{run, ExitCode, RunDeps};
 
 use support::in_memory::{InMemoryFeatureSource, InMemoryResolver};
 
@@ -24,7 +24,7 @@ async fn nonexistent_input_returns_input_error() {
     };
 
     let cache = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     let (exit, report) = run(
@@ -66,7 +66,7 @@ async fn missing_header_returns_input_error() {
     };
 
     let cache = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     let (exit, report) = run(
@@ -111,7 +111,7 @@ async fn zero_rows_returns_input_error() {
     };
 
     let cache = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     let (exit, report) = run(
@@ -141,7 +141,7 @@ fn corrupt_cache_load_or_exit_returns_cache_error() {
     // Write invalid JSON to the cache file
     std::fs::write(&cache_path, b"{ not valid json").unwrap();
 
-    let result = playlistize::load_cache_or_exit_code(&cache_path);
+    let result = order_playlist::load_cache_or_exit_code(&cache_path);
     match result {
         Err((exit, _msg)) => assert_eq!(
             exit,
@@ -165,7 +165,7 @@ fn version_mismatch_cache_load_or_exit_returns_cache_error() {
     });
     std::fs::write(&cache_path, serde_json::to_string(&invalid_cache).unwrap()).unwrap();
 
-    let result = playlistize::load_cache_or_exit_code(&cache_path);
+    let result = order_playlist::load_cache_or_exit_code(&cache_path);
     match result {
         Err((exit, _msg)) => assert_eq!(
             exit,

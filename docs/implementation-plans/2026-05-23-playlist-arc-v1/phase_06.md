@@ -6,7 +6,7 @@
 
 **Tech Stack:** Rust, `reqwest`, `tokio`, `serde`, `tracing`. Same pattern as Phase 5 — pure URL/parse helpers tested with unit tests, integration tested with `wiremock`, live-network smoke test gated by feature flag.
 
-**Scope:** Phase 6 of 7 from `/Users/y/Apps/music/playlistize/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 6 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phase 4's `Cache` + Phase 5's `Resolver`/`Resolution` + `tests/support/in_memory.rs` exist. `src/adapters/reccobeats.rs` does not.
 
@@ -23,7 +23,7 @@ Internet research in May 2026 reports the ReccoBeats API differs from the design
 
 **The Task-1 manual spike** (described below) is mandatory and must occur **before** any further implementation. If the spike reveals that the API simply doesn't return audio features by ISRC at all, surface the finding to the user before continuing — that would require a v1 scope change.
 
-**Project guidance:** `/Users/y/Apps/music/playlistize/implementation-plan-guidance.md`. Same rules as Phase 5: no `unwrap()` outside tests/`main`; doc comments on `pub` items; AC9.1 (no silent skips); AC9.2 (`tracing::info!` on every network call).
+**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Same rules as Phase 5: no `unwrap()` outside tests/`main`; doc comments on `pub` items; AC9.1 (no silent skips); AC9.2 (`tracing::info!` on every network call).
 
 ---
 
@@ -100,7 +100,7 @@ The spike is complete when:
 
 Run this gate before starting Task 4:
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 test -f docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md \
   && grep -q "^## Question 1" docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md \
   && grep -q "^## Question 5" docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md \
@@ -145,7 +145,7 @@ The implementor must NOT make this decision unilaterally — it changes the desi
 
 **Commit the spike findings** (required, not optional):
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 git add docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md
 git commit -m "Phase 6: API spike findings for ReccoBeats"
 ```
@@ -155,8 +155,8 @@ git commit -m "Phase 6: API spike findings for ReccoBeats"
 ### Task 2: Define FeatureSource trait + ReccoBeatsError
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/mod.rs`
-- Modify: `/Users/y/Apps/music/playlistize/src/errors.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/errors.rs`
 
 **Implementation:**
 
@@ -184,7 +184,7 @@ In `errors.rs`:
 ```rust
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 #[error("ReccoBeats {kind:?} for {ids:?}")]
-#[diagnostic(code(playlistize::adapter::reccobeats::error))]
+#[diagnostic(code(order_playlist::adapter::reccobeats::error))]
 pub struct ReccoBeatsError {
     pub kind: ReccoBeatsErrorKind,
     pub ids: Vec<String>,
@@ -203,16 +203,16 @@ pub enum ReccoBeatsErrorKind {
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 pub enum AdapterError {
     #[error("MusicBrainz error: {0}")]
-    #[diagnostic(code(playlistize::adapter::musicbrainz))]
+    #[diagnostic(code(order_playlist::adapter::musicbrainz))]
     MusicBrainz(#[from] MusicBrainzError),
 
     #[error("ReccoBeats error: {0}")]
-    #[diagnostic(code(playlistize::adapter::reccobeats))]
+    #[diagnostic(code(order_playlist::adapter::reccobeats))]
     ReccoBeats(#[from] ReccoBeatsError),
 
     #[error("rate limited; exhausted retries on {endpoint}")]
     #[diagnostic(
-        code(playlistize::adapter::rate_limited),
+        code(order_playlist::adapter::rate_limited),
         help("re-run later; consider authenticated access for higher quota")
     )]
     RateLimited { endpoint: String },
@@ -226,7 +226,7 @@ pub enum AdapterError {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo build --features reccobeats`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo build --features reccobeats`
 Expected: green (the `reccobeats.rs` doesn't exist yet — comment out the `#[cfg(feature = "reccobeats")] pub mod reccobeats;` until Task 4 or use a stub).
 
 Add a stub `src/adapters/reccobeats.rs`:
@@ -246,14 +246,14 @@ Add a stub `src/adapters/reccobeats.rs`:
 ### Task 3: Add InMemoryFeatureSource + PanicOnCallFeatureSource test doubles
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/tests/support/in_memory.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/tests/support/in_memory.rs`
 
 **Implementation:**
 
 ```rust
 use std::collections::HashMap;
-use playlistize::adapters::FeatureSource;
-use playlistize::domain::{TrackFeatures, TrackId};
+use order_playlist::adapters::FeatureSource;
+use order_playlist::domain::{TrackFeatures, TrackId};
 
 pub struct InMemoryFeatureSource {
     pub map: HashMap<TrackId, TrackFeatures>,
@@ -290,8 +290,8 @@ impl FeatureSource for PanicOnCallFeatureSource {
 mod support;
 
 use support::in_memory::InMemoryFeatureSource;
-use playlistize::adapters::FeatureSource;
-use playlistize::domain::{TrackFeatures, TrackId};
+use order_playlist::adapters::FeatureSource;
+use order_playlist::domain::{TrackFeatures, TrackId};
 
 #[tokio::test]
 async fn in_memory_features_returns_known() {
@@ -309,7 +309,7 @@ Note `TrackFeatures::neutral()` is `#[cfg(test)]`-only — it's accessible to in
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --test in_memory_features_smoke`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test in_memory_features_smoke`
 Expected: passes.
 
 **Commit:** `Phase 6: InMemoryFeatureSource + PanicOnCallFeatureSource test doubles`
@@ -323,12 +323,12 @@ Expected: passes.
 ### Task 4: Implement ReccoBeatsFeatures struct, URL builders, response models
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/reccobeats.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/reccobeats.rs`
 
 **Precondition — DO NOT START until Task 1 is complete:**
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 test -f docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md \
   && grep -q "^## Decisions" docs/implementation-plans/2026-05-23-playlist-arc-v1/RECCOBEATS_SPIKE.md \
   || { echo "BLOCKED: Task 1 spike not complete — return to Task 1"; exit 1; }
@@ -543,7 +543,7 @@ mod tests {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --features reccobeats --lib adapters::reccobeats::tests`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --features reccobeats --lib adapters::reccobeats::tests`
 Expected: all pass.
 
 **Commit:** `Phase 6: ReccoBeats URL builders, response models, feature mapping helpers`
@@ -553,7 +553,7 @@ Expected: all pass.
 ### Task 5: Implement FeatureSource impl with batching, cache, and 429 retry
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/reccobeats.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/reccobeats.rs`
 
 **Implementation:**
 
@@ -681,7 +681,7 @@ This task's behavior is fully tested in Task 6's wiremock integration tests. No 
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo build --features reccobeats`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo build --features reccobeats`
 Expected: green.
 
 **Commit:** `Phase 6: ReccoBeatsFeatures impl with batch+cache+429 retry`
@@ -691,7 +691,7 @@ Expected: green.
 ### Task 6: Add wiremock integration tests for ReccoBeats batching, cache, and 429
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/reccobeats.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/reccobeats.rs`
 
 **Implementation:**
 
@@ -803,7 +803,7 @@ mod integration_tests {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --features reccobeats --lib adapters::reccobeats`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --features reccobeats --lib adapters::reccobeats`
 Expected: all unit + wiremock tests pass. Total runtime < 5s with the test backoff shortened.
 
 **Commit:** `Phase 6: wiremock integration tests for ReccoBeats (batch + cache + 429 retry)`
@@ -817,7 +817,7 @@ Expected: all unit + wiremock tests pass. Total runtime < 5s with the test backo
 ### Task 7: Add live-network smoke test (feature-gated)
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/tests/reccobeats_live.rs`
+- Create: `/Users/y/Apps/music/order_playlist/tests/reccobeats_live.rs`
 
 **Implementation:**
 
@@ -828,8 +828,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use playlistize::adapters::{Cache, FeatureSource, ReccoBeatsFeatures};
-use playlistize::domain::TrackId;
+use order_playlist::adapters::{Cache, FeatureSource, ReccoBeatsFeatures};
+use order_playlist::domain::TrackId;
 
 #[tokio::test]
 async fn fetches_features_for_known_isrc() {
@@ -855,9 +855,9 @@ async fn fetches_features_for_known_isrc() {
 
 **Verification:**
 
-Without the feature: `cd /Users/y/Apps/music/playlistize && cargo test --test reccobeats_live` → builds with zero tests.
+Without the feature: `cd /Users/y/Apps/music/order_playlist && cargo test --test reccobeats_live` → builds with zero tests.
 
-With the feature: `cd /Users/y/Apps/music/playlistize && cargo test --features reccobeats,live-network --test reccobeats_live` → passes if network reaches reccobeats.com. If it fails on this Task, **return to Task 1 spike** — the API has likely changed shape since the design was written.
+With the feature: `cd /Users/y/Apps/music/order_playlist && cargo test --features reccobeats,live-network --test reccobeats_live` → passes if network reaches reccobeats.com. If it fails on this Task, **return to Task 1 spike** — the API has likely changed shape since the design was written.
 
 **Commit:** `Phase 6: live-network smoke test for ReccoBeats`
 <!-- END_TASK_7 -->
@@ -866,7 +866,7 @@ With the feature: `cd /Users/y/Apps/music/playlistize && cargo test --features r
 ### Task 8: Module wiring, full verification, commit
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/mod.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
 
 **Implementation:**
 
@@ -897,7 +897,7 @@ pub use reccobeats::ReccoBeatsFeatures;
 Final verification (each must exit 0):
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo clippy --all-targets --no-default-features --features musicbrainz,reccobeats -- -D warnings
@@ -907,7 +907,7 @@ cargo build --release
 
 AC8 surface checks:
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 cargo build --no-default-features --features musicbrainz,reccobeats
 cargo build --no-default-features --features musicbrainz
 cargo build --no-default-features --features reccobeats
@@ -918,7 +918,7 @@ The last command (`--no-default-features` alone) should compile `algo/` + `domai
 
 **Commit:** Bundle as needed:
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 git add src/adapters/ Cargo.toml Cargo.lock
 git status
 git commit -m "Phase 6: ReccoBeats adapter wiring + full feature-matrix verification"

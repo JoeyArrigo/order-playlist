@@ -1,7 +1,7 @@
 mod support;
 
-use playlistize::adapters::FeatureSource;
-use playlistize::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId};
+use order_playlist::adapters::FeatureSource;
+use order_playlist::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId};
 use support::in_memory::InMemoryFeatureSource;
 
 #[tokio::test]

@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use playlistize::adapters::Cache;
-use playlistize::cli::ResolvedArgs;
-use playlistize::run::{run, ExitCode, RunDeps, RunReport};
+use order_playlist::adapters::Cache;
+use order_playlist::cli::ResolvedArgs;
+use order_playlist::run::{run, ExitCode, RunDeps, RunReport};
 
 use super::in_memory::{InMemoryFeatureSource, InMemoryResolver};
 

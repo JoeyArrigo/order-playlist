@@ -3,17 +3,17 @@
 // logging initialization, dependency construction, and process exit codes.
 // All business logic is delegated to run::run (pure) and adapters (I/O boundaries).
 
-//! `playlistize` binary entry point.
+//! `order_playlist` binary entry point.
 
 use clap::Parser;
-use playlistize::adapters::Cache;
-use playlistize::cli::Args;
-use playlistize::run::{run, RunDeps};
+use order_playlist::adapters::Cache;
+use order_playlist::cli::Args;
+use order_playlist::run::{run, RunDeps};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[cfg(all(feature = "musicbrainz", feature = "reccobeats"))]
-use playlistize::adapters::{FeatureSource, Resolver};
+use order_playlist::adapters::{FeatureSource, Resolver};
 
 #[tokio::main]
 async fn main() -> miette::Result<()> {
@@ -31,7 +31,7 @@ async fn main() -> miette::Result<()> {
     }
 
     let cache_path = args.cache.clone();
-    let cache = match playlistize::load_cache_or_exit_code(&cache_path) {
+    let cache = match order_playlist::load_cache_or_exit_code(&cache_path) {
         Ok(c) => Arc::new(Mutex::new(c)),
         Err((exit_code, message)) => {
             eprintln!("error: {}", message);
@@ -59,7 +59,7 @@ fn init_tracing(verbose: u8) {
         _ => "trace",
     };
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("playlistize={}", default_level)));
+        .unwrap_or_else(|_| EnvFilter::new(format!("order_playlist={}", default_level)));
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_target(false)
@@ -69,16 +69,16 @@ fn init_tracing(verbose: u8) {
 /// Construct the resolver + feature source based on enabled Cargo features.
 /// AC8.3: when no provider feature is enabled, emit a clear error.
 fn build_deps(
-    args: &playlistize::cli::ResolvedArgs,
+    args: &order_playlist::cli::ResolvedArgs,
     cache: Arc<Mutex<Cache>>,
 ) -> miette::Result<RunDeps> {
     #[cfg(all(feature = "musicbrainz", feature = "reccobeats"))]
     {
         let resolver = Box::new(
-            playlistize::adapters::MusicBrainzIsrcResolver::new(
+            order_playlist::adapters::MusicBrainzIsrcResolver::new(
                 cache.clone(),
                 format!(
-                    "playlistize/{} ({})",
+                    "order_playlist/{} ({})",
                     env!("CARGO_PKG_VERSION"),
                     args.musicbrainz_contact
                 ),
@@ -87,7 +87,7 @@ fn build_deps(
         ) as Box<dyn Resolver>;
 
         let feature_source = Box::new(
-            playlistize::adapters::ReccoBeatsFeatures::new(cache.clone())
+            order_playlist::adapters::ReccoBeatsFeatures::new(cache.clone())
                 .map_err(|e| miette::miette!("failed to build ReccoBeats client: {e}"))?,
         ) as Box<dyn FeatureSource>;
 

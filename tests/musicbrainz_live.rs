@@ -12,8 +12,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use playlistize::adapters::{Cache, MusicBrainzIsrcResolver, Resolution, Resolver};
-use playlistize::domain::TrackQuery;
+use order_playlist::adapters::{Cache, MusicBrainzIsrcResolver, Resolution, Resolver};
+use order_playlist::domain::TrackQuery;
 
 #[tokio::test]
 async fn resolves_get_lucky_to_isrc() {
@@ -23,7 +23,7 @@ async fn resolves_get_lucky_to_isrc() {
     ));
 
     let resolver =
-        MusicBrainzIsrcResolver::new(cache, "playlistize-test/0.1 (test@example.com)".into())
+        MusicBrainzIsrcResolver::new(cache, "order_playlist-test/0.1 (test@example.com)".into())
             .unwrap();
 
     let q = TrackQuery::new("Get Lucky", "Daft Punk");

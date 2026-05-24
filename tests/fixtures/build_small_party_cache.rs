@@ -2,8 +2,10 @@
 //! Run: `cargo run --bin build_small_party_cache`.
 //! The output is committed to the repo so `cargo test` is hermetic.
 
-use playlistize::adapters::Cache;
-use playlistize::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery};
+use order_playlist::adapters::Cache;
+use order_playlist::domain::{
+    Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId, TrackQuery,
+};
 use std::path::PathBuf;
 
 fn main() {

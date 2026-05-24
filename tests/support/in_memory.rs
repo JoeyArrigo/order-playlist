@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use playlistize::adapters::{FeatureSource, Resolution, Resolver};
-use playlistize::domain::{TrackFeatures, TrackId, TrackQuery};
+use order_playlist::adapters::{FeatureSource, Resolution, Resolver};
+use order_playlist::domain::{TrackFeatures, TrackId, TrackQuery};
 
 /// In-memory resolver for testing.
 ///

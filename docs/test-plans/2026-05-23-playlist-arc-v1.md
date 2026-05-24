@@ -9,7 +9,7 @@ Automated coverage validated: **37/37 criteria covered, 0 missing**. This plan c
 ## Prerequisites
 
 - Rust toolchain installed (`cargo --version` works).
-- Working directory: `/Users/y/Apps/music/playlistize/`
+- Working directory: `/Users/y/Apps/music/order_playlist/`
 - Branch checked out: `playlist-arc-v1` at HEAD `5f93b60`.
 - `cargo build --release` completes without warnings.
 - `cargo test` completes with all tests passing (no `--features live-network`).
@@ -20,11 +20,11 @@ Automated coverage validated: **37/37 criteria covered, 0 missing**. This plan c
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 1.1 | `mkdir -p /tmp/playlistize-smoke && cp tests/fixtures/small_party.csv /tmp/playlistize-smoke/in.csv && cp tests/fixtures/small_party.cache.json /tmp/playlistize-smoke/in.cache.json` | Files copied. |
-| 1.2 | `./target/release/playlistize --input /tmp/playlistize-smoke/in.csv --output /tmp/playlistize-smoke/out.csv --seed 42` | Process exits 0. Stdout shows: (a) "Energy arc" chart with `#` columns and `0.0`–`1.0` row labels, (b) "Summary" block with resolved/unresolved/seed/before/after cost/breakdown/remaining clashes. No "error:" line on stderr. |
-| 1.3 | `head -1 /tmp/playlistize-smoke/out.csv` | Equals exactly: `position,title,artist,tempo,key,mode,energy,danceability,valence,loudness,isrc` |
-| 1.4 | `wc -l /tmp/playlistize-smoke/out.csv` | 11 lines (1 header + 10 rows). |
-| 1.5 | `awk -F',' 'NR>1 {print NF}' /tmp/playlistize-smoke/out.csv | sort -u` | Single value `11`. |
+| 1.1 | `mkdir -p /tmp/order_playlist-smoke && cp tests/fixtures/small_party.csv /tmp/order_playlist-smoke/in.csv && cp tests/fixtures/small_party.cache.json /tmp/order_playlist-smoke/in.cache.json` | Files copied. |
+| 1.2 | `./target/release/order_playlist --input /tmp/order_playlist-smoke/in.csv --output /tmp/order_playlist-smoke/out.csv --seed 42` | Process exits 0. Stdout shows: (a) "Energy arc" chart with `#` columns and `0.0`–`1.0` row labels, (b) "Summary" block with resolved/unresolved/seed/before/after cost/breakdown/remaining clashes. No "error:" line on stderr. |
+| 1.3 | `head -1 /tmp/order_playlist-smoke/out.csv` | Equals exactly: `position,title,artist,tempo,key,mode,energy,danceability,valence,loudness,isrc` |
+| 1.4 | `wc -l /tmp/order_playlist-smoke/out.csv` | 11 lines (1 header + 10 rows). |
+| 1.5 | `awk -F',' 'NR>1 {print NF}' /tmp/order_playlist-smoke/out.csv | sort -u` | Single value `11`. |
 | 1.6 | Re-run step 1.2 saving to a different output, then diff the two outputs. | No diff — byte-identical output (validates AC5.1 visually). |
 
 ## Phase 2: AC8.3 — bare-bones binary clearly errors
@@ -32,7 +32,7 @@ Automated coverage validated: **37/37 criteria covered, 0 missing**. This plan c
 | Step | Action | Expected |
 |------|--------|----------|
 | 2.1 | `cargo build --no-default-features` | Build succeeds with no warnings/errors. |
-| 2.2 | `./target/debug/playlistize --input /tmp/x.csv --output /tmp/y.csv 2>&1; echo "exit=$?"` | Stderr contains `no resolver/feature source compiled in; build with --features musicbrainz,reccobeats`. Process exits non-zero. |
+| 2.2 | `./target/debug/order_playlist --input /tmp/x.csv --output /tmp/y.csv 2>&1; echo "exit=$?"` | Stderr contains `no resolver/feature source compiled in; build with --features musicbrainz,reccobeats`. Process exits non-zero. |
 | 2.3 | `cargo build` (restore default features) | Default binary rebuilt; ready for further tests. |
 
 ## Phase 3: AC9.3 — miette panic rendering (manual only)
@@ -46,10 +46,10 @@ Automated coverage validated: **37/37 criteria covered, 0 missing**. This plan c
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 4.1 | `./target/release/playlistize --input /nonexistent.csv --output /tmp/out.csv` | Stderr contains `error: input file not found: /nonexistent.csv`. Exit code 3 (run `echo $?`). |
-| 4.2 | Create `/tmp/playlistize-bad/bad_header.csv` containing `foo,bar\nx,y\n`, then `./target/release/playlistize --input /tmp/playlistize-bad/bad_header.csv --output /tmp/o.csv`. | Stderr error mentions missing column(s) `title` and/or `artist`. Exit code 3. |
-| 4.3 | Create `/tmp/playlistize-bad/header_only.csv` containing `title,artist\n` then run. | Exit code 3; error mentions "zero data rows". |
-| 4.4 | Create `/tmp/playlistize-bad/corrupt.cache.json` containing `{ not valid json`, point a run at it via `--cache /tmp/playlistize-bad/corrupt.cache.json --input tests/fixtures/small_party.csv --output /tmp/o.csv`. | Exit code 4 (CacheError); stderr explains corrupt cache and suggests deletion. |
+| 4.1 | `./target/release/order_playlist --input /nonexistent.csv --output /tmp/out.csv` | Stderr contains `error: input file not found: /nonexistent.csv`. Exit code 3 (run `echo $?`). |
+| 4.2 | Create `/tmp/order_playlist-bad/bad_header.csv` containing `foo,bar\nx,y\n`, then `./target/release/order_playlist --input /tmp/order_playlist-bad/bad_header.csv --output /tmp/o.csv`. | Stderr error mentions missing column(s) `title` and/or `artist`. Exit code 3. |
+| 4.3 | Create `/tmp/order_playlist-bad/header_only.csv` containing `title,artist\n` then run. | Exit code 3; error mentions "zero data rows". |
+| 4.4 | Create `/tmp/order_playlist-bad/corrupt.cache.json` containing `{ not valid json`, point a run at it via `--cache /tmp/order_playlist-bad/corrupt.cache.json --input tests/fixtures/small_party.csv --output /tmp/o.csv`. | Exit code 4 (CacheError); stderr explains corrupt cache and suggests deletion. |
 | 4.5 | Same as 4.4 but cache content `{"version": 99, "resolutions": [], "features": {}}`. | Exit code 4; stderr mentions version mismatch (found 99, expected 1). |
 
 ## End-to-End: Deterministic warm-cache run produces a sensible playlist
@@ -58,7 +58,7 @@ Purpose: validates AC1 + AC2 + AC3 + AC5 + AC6 + AC7 simultaneously on the real 
 
 Steps:
 1. From a clean temp dir, copy `tests/fixtures/small_party.csv` and `tests/fixtures/small_party.cache.json` next to each other as `in.csv` and `in.cache.json`.
-2. Run: `./target/release/playlistize --input in.csv --output out.csv --seed 42 --artist-window 4`.
+2. Run: `./target/release/order_playlist --input in.csv --output out.csv --seed 42 --artist-window 4`.
 3. Verify stdout contains:
    - The `Energy arc` header followed by ASCII bar chart with `#` cells.
    - A `Summary` block with `resolved: 10`, `unresolved: 0`, `seed: 42 (supplied)`, before/after totals, per-term breakdown for arc/camelot/tempo/energy/artist, and `artist clashes remaining: 0`.
@@ -74,20 +74,20 @@ Purpose: validates AC4 end-to-end including the re-feed pathway.
 
 Steps:
 1. Build a CSV `bad.csv` containing the 5 known-resolvable titles from `tests/fixtures/with_bad_rows.csv` plus 3 fabricated rows (e.g., `Not A Real Song,Not A Real Artist`). Use an empty cache.
-2. Run: `./target/release/playlistize --input bad.csv --output out.csv --seed 42`.
+2. Run: `./target/release/order_playlist --input bad.csv --output out.csv --seed 42`.
 3. Expect exit 0 (partial success). `out.csv` contains the 5 resolved tracks. `unresolved.csv` (next to `out.csv`) has 4 lines: header `title,artist,reason` plus 3 rows.
-4. Re-feed: `./target/release/playlistize --input unresolved.csv --output out2.csv --seed 42 --cache /tmp/empty.cache.json`. Expect this run to also fail to resolve them and produce another unresolved.csv with the same 3 rows (proving AC4.5 round-trip works through the real binary).
+4. Re-feed: `./target/release/order_playlist --input unresolved.csv --output out2.csv --seed 42 --cache /tmp/empty.cache.json`. Expect this run to also fail to resolve them and produce another unresolved.csv with the same 3 rows (proving AC4.5 round-trip works through the real binary).
 5. Replace `bad.csv` with a CSV where the resolver knows zero entries (e.g., `unresolved.csv` from step 3 if you have no network). Run again with an empty cache and offline. Expect exit code 5 (NothingResolved).
 
 ## Human Verification Required
 
 | Criterion | Why Manual | Steps |
 |-----------|------------|-------|
-| AC8.2 | Architecture-only; verified by grep gate at PR review. | Run `grep -rn 'crate::adapters\|use crate::adapters\|use playlistize::adapters' src/algo/ src/domain/ src/cli/` — expect zero matches (a single doc comment in `src/domain/mod.rs` that *mentions* the forbidden import is fine). Confirm `Resolver` and `FeatureSource` traits in `src/adapters/mod.rs` are the only adapter surfaces touched by `run.rs`. |
+| AC8.2 | Architecture-only; verified by grep gate at PR review. | Run `grep -rn 'crate::adapters\|use crate::adapters\|use order_playlist::adapters' src/algo/ src/domain/ src/cli/` — expect zero matches (a single doc comment in `src/domain/mod.rs` that *mentions* the forbidden import is fine). Confirm `Resolver` and `FeatureSource` traits in `src/adapters/mod.rs` are the only adapter surfaces touched by `run.rs`. |
 | AC8.3 (runtime) | Bare-bones binary cannot construct `RunDeps`; no in-process test can exercise it. | Steps 2.1–2.3 above. |
 | AC9.3 (runtime) | miette renders ANSI to process-global stderr; awkward to capture in-process. | Steps 3.1–3.2 above, supplemented by Steps 4.1–4.5 to confirm the diagnostic codes and help strings render on real error paths. |
-| AC5.4 (log) | Args::resolve unit-tests the seed derivation; log emission verified by visual inspection. | Run `./target/release/playlistize --input … --output … -v` without `--seed`; observe INFO log `no --seed supplied; derived from system time` with the derived seed. |
-| AC9.2 (log) | Adapters emit info-level tracing on every network call; verified by visual log inspection on real network runs. | Run `./target/release/playlistize --input … -vv` against a cold-cache input and observe INFO events `musicbrainz lookup` and `reccobeats batch` on stderr. |
+| AC5.4 (log) | Args::resolve unit-tests the seed derivation; log emission verified by visual inspection. | Run `./target/release/order_playlist --input … --output … -v` without `--seed`; observe INFO log `no --seed supplied; derived from system time` with the derived seed. |
+| AC9.2 (log) | Adapters emit info-level tracing on every network call; verified by visual log inspection on real network runs. | Run `./target/release/order_playlist --input … -vv` against a cold-cache input and observe INFO events `musicbrainz lookup` and `reccobeats batch` on stderr. |
 
 ## Traceability
 

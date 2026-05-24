@@ -6,11 +6,11 @@
 
 **Tech Stack:** Rust, `csv` (reader/writer), `serde_json` (cache file), `miette` (diagnostic spans), `tempfile`-free atomic rename (write to `<path>.tmp`, then `std::fs::rename`).
 
-**Scope:** Phase 4 of 7 from `/Users/y/Apps/music/playlistize/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 4 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phase 2 domain types will exist (`TrackQuery`, `TrackId`, `Track`, `TrackFeatures`). `src/adapters/mod.rs` exists as a stub. `src/errors.rs` exists with a module-level doc comment but no types yet.
 
-**Project guidance:** `/Users/y/Apps/music/playlistize/implementation-plan-guidance.md`. Key rules for this phase: errors must include source paths + line numbers (per the "miette source spans" rule); no `unwrap()` outside tests/`main`; new `pub` items need doc comments.
+**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules for this phase: errors must include source paths + line numbers (per the "miette source spans" rule); no `unwrap()` outside tests/`main`; new `pub` items need doc comments.
 
 ---
 
@@ -60,7 +60,7 @@ SUBCOMPONENT_D: Module re-exports and verification (task 8)
 ### Task 1: Define InputError and CacheError in errors.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/errors.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/errors.rs`
 
 **Implementation:**
 
@@ -76,21 +76,21 @@ use std::path::PathBuf;
 pub enum InputError {
     #[error("input file not found: {path}")]
     #[diagnostic(
-        code(playlistize::input::not_found),
+        code(order_playlist::input::not_found),
         help("verify the path exists and is readable")
     )]
     NotFound { path: PathBuf },
 
     #[error("output parent directory does not exist: {parent}")]
     #[diagnostic(
-        code(playlistize::input::missing_parent),
+        code(order_playlist::input::missing_parent),
         help("create the directory before running, or choose a path whose parent exists")
     )]
     MissingParentDir { parent: PathBuf },
 
     #[error("missing required column(s): {missing:?}")]
     #[diagnostic(
-        code(playlistize::input::missing_column),
+        code(order_playlist::input::missing_column),
         help("input CSV must have at minimum 'title' and 'artist' columns")
     )]
     MissingColumn {
@@ -103,13 +103,13 @@ pub enum InputError {
 
     #[error("input contained zero data rows")]
     #[diagnostic(
-        code(playlistize::input::no_rows),
+        code(order_playlist::input::no_rows),
         help("the file has a valid header but no tracks; add at least one row")
     )]
     NoRows { path: PathBuf },
 
     #[error("CSV parse error at line {line}: {message}")]
-    #[diagnostic(code(playlistize::input::csv_parse))]
+    #[diagnostic(code(order_playlist::input::csv_parse))]
     Csv {
         line: u64,
         message: String,
@@ -118,7 +118,7 @@ pub enum InputError {
     },
 
     #[error("IO error reading {path}")]
-    #[diagnostic(code(playlistize::input::io))]
+    #[diagnostic(code(order_playlist::input::io))]
     Io {
         path: PathBuf,
         #[source]
@@ -130,14 +130,14 @@ pub enum InputError {
 pub enum CacheError {
     #[error("cache version mismatch: file has version {found}, expected {expected}")]
     #[diagnostic(
-        code(playlistize::cache::version_mismatch),
-        help("delete the cache file or upgrade `playlistize`; cache schema changed between versions")
+        code(order_playlist::cache::version_mismatch),
+        help("delete the cache file or upgrade `order_playlist`; cache schema changed between versions")
     )]
     VersionMismatch { found: u32, expected: u32 },
 
     #[error("cache file is corrupt: {message}")]
     #[diagnostic(
-        code(playlistize::cache::corrupt),
+        code(order_playlist::cache::corrupt),
         help("delete the cache file and rerun; resolved features will be re-fetched")
     )]
     Corrupt {
@@ -147,7 +147,7 @@ pub enum CacheError {
     },
 
     #[error("IO error on cache file {path}")]
-    #[diagnostic(code(playlistize::cache::io))]
+    #[diagnostic(code(order_playlist::cache::io))]
     Io {
         path: PathBuf,
         #[source]
@@ -169,7 +169,7 @@ The error-rendering tests just confirm construction and `Display` output — the
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo build && cargo test --lib errors`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib errors`
 Expected: green.
 
 **Commit:** `Phase 4: InputError + CacheError with miette diagnostics`
@@ -183,7 +183,7 @@ Expected: green.
 ### Task 2: Implement read_input(path) -> Result<Vec<TrackQuery>, InputError>
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/src/adapters/csv_io.rs`
+- Create: `/Users/y/Apps/music/order_playlist/src/adapters/csv_io.rs`
 
 **Implementation:**
 
@@ -302,7 +302,7 @@ For each case below, create a temp file with `tempfile::NamedTempFile` (add `tem
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::csv_io::tests::read_input`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::csv_io::tests::read_input`
 Expected: all cases pass.
 
 **Commit:** `Phase 4: csv_io::read_input with miette-decorated errors`
@@ -312,7 +312,7 @@ Expected: all cases pass.
 ### Task 3: Implement write_output(path, ordering, &[Track])
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/csv_io.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/csv_io.rs`
 
 **Implementation:**
 
@@ -394,7 +394,7 @@ The fixed-decimal formatting (`{:.2}`, `{:.4}`) is chosen for byte-identical det
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::csv_io::tests::write_output`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::csv_io::tests::write_output`
 Expected: all cases pass; `insta` snapshot accepted (run `cargo insta review` if first time).
 
 **Commit:** `Phase 4: csv_io::write_output with fixed-precision feature columns`
@@ -404,7 +404,7 @@ Expected: all cases pass; `insta` snapshot accepted (run `cargo insta review` if
 ### Task 4: Implement write_unresolved(path, &[Unresolved])
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/csv_io.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/csv_io.rs`
 
 **Implementation:**
 
@@ -459,7 +459,7 @@ pub fn write_unresolved(path: &Path, unresolved: &[Unresolved]) -> Result<(), In
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::csv_io::tests::write_unresolved`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::csv_io::tests::write_unresolved`
 Expected: all cases pass.
 
 **Commit:** `Phase 4: csv_io::write_unresolved + AC4.5 re-feed round-trip test`
@@ -473,7 +473,7 @@ Expected: all cases pass.
 ### Task 5: Implement CacheFile struct + Cache::load (with version + corrupt handling)
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/src/adapters/cache.rs`
+- Create: `/Users/y/Apps/music/order_playlist/src/adapters/cache.rs`
 
 **Implementation:**
 
@@ -581,7 +581,7 @@ impl Cache {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::cache::tests::load`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::cache::tests::load`
 Expected: all cases pass.
 
 **Commit:** `Phase 4: Cache::load with version check + corrupt diagnostics`
@@ -591,7 +591,7 @@ Expected: all cases pass.
 ### Task 6: Implement Cache accessors (get/put for resolutions and features)
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/cache.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/cache.rs`
 
 **Implementation:**
 
@@ -630,7 +630,7 @@ impl Cache {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::cache::tests::accessors`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::cache::tests::accessors`
 Expected: green.
 
 **Commit:** Bundled with Task 7.
@@ -640,7 +640,7 @@ Expected: green.
 ### Task 7: Implement Cache::save_atomic and verify the SIGKILL-safe property
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/cache.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/cache.rs`
 
 **Implementation:**
 
@@ -741,7 +741,7 @@ impl Cache {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib adapters::cache`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib adapters::cache`
 Expected: all cases pass. The atomicity test should not flake; if it does on first attempt, switch to the "nonexistent parent" variant.
 
 **Commit:** `Phase 4: Cache::save_atomic + BTreeMap-backed deterministic serialization`
@@ -755,7 +755,7 @@ Expected: all cases pass. The atomicity test should not flake; if it does on fir
 ### Task 8: Wire adapters module, run full verification, commit
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/adapters/mod.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
 
 **Implementation:**
 
@@ -778,7 +778,7 @@ Add `tempfile = "=3.13.0"` to `[dev-dependencies]` in `Cargo.toml` (used by Task
 Final verification:
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
@@ -789,7 +789,7 @@ All four exit 0. `cargo test` should report tests covering: `errors::*`, `adapte
 
 If any prior task wasn't committed, stage and commit:
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 git add src/adapters/ src/errors.rs Cargo.toml Cargo.lock
 git status
 git commit -m "Phase 4: adapters module re-exports + tempfile dev-dep"
@@ -797,7 +797,7 @@ git commit -m "Phase 4: adapters module re-exports + tempfile dev-dep"
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && git status`
+Run: `cd /Users/y/Apps/music/order_playlist && git status`
 Expected: `nothing to commit, working tree clean`.
 <!-- END_TASK_8 -->
 

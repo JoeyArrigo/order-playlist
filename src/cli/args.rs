@@ -14,7 +14,7 @@ use std::path::PathBuf;
 /// sensible defaults that may depend on other arguments.
 #[derive(clap::Parser, Debug)]
 #[command(
-    name = "playlistize",
+    name = "order_playlist",
     version,
     about = "Reorder a CSV playlist to follow a target energy arc."
 )]
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn parses_required_args() {
         let args =
-            Args::try_parse_from(["playlistize", "--input", "in.csv", "--output", "out.csv"])
+            Args::try_parse_from(["order_playlist", "--input", "in.csv", "--output", "out.csv"])
                 .unwrap();
         let r = args.resolve();
         assert_eq!(r.input, PathBuf::from("in.csv"));
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn defaults_unresolved_to_output_dir() {
         let args = Args::try_parse_from([
-            "playlistize",
+            "order_playlist",
             "--input",
             "in.csv",
             "--output",
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn defaults_cache_to_input_extension() {
         let args = Args::try_parse_from([
-            "playlistize",
+            "order_playlist",
             "--input",
             "/data/songs.csv",
             "--output",
@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn seed_passthrough() {
         let args = Args::try_parse_from([
-            "playlistize",
+            "order_playlist",
             "--input",
             "in.csv",
             "--output",
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn artist_window_zero_accepted() {
         let args = Args::try_parse_from([
-            "playlistize",
+            "order_playlist",
             "--input",
             "in.csv",
             "--output",
@@ -188,14 +188,14 @@ mod tests {
 
     #[test]
     fn missing_required_arg_errors() {
-        let result = Args::try_parse_from(["playlistize", "--input", "in.csv"]);
+        let result = Args::try_parse_from(["order_playlist", "--input", "in.csv"]);
         assert!(result.is_err());
     }
 
     #[test]
     fn system_time_seed_derivation_when_not_supplied() {
         let args =
-            Args::try_parse_from(["playlistize", "--input", "in.csv", "--output", "out.csv"])
+            Args::try_parse_from(["order_playlist", "--input", "in.csv", "--output", "out.csv"])
                 .unwrap();
         let r = args.resolve();
 

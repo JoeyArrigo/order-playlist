@@ -40,5 +40,5 @@ jobs:
       - name: smoke-test bare-bones startup error (AC8.3)
         if: matrix.features == '--no-default-features'
         run: |
-          output=$(./target/debug/playlistize --input /nonexistent --output /tmp/out.csv 2>&1 || true)
+          output=$(./target/debug/order_playlist --input /nonexistent --output /tmp/out.csv 2>&1 || true)
           echo "$output" | grep -q "no resolver/feature source compiled in" || (echo "AC8.3 failed: missing expected error" && exit 1)

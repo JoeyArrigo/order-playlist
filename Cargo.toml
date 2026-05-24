@@ -1,12 +1,12 @@
 [package]
-name = "playlistize"
+name = "order_playlist"
 version = "0.1.0"
 edition = "2021"
 description = "Reorder a CSV playlist to follow a target energy arc."
 publish = false
 
 [[bin]]
-name = "playlistize"
+name = "order_playlist"
 path = "src/main.rs"
 
 [[bin]]

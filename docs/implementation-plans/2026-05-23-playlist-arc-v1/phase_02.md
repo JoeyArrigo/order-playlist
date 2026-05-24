@@ -6,11 +6,11 @@
 
 **Tech Stack:** Rust, serde (derive), tracing (warn on clamp), proptest + test-case (unit tests).
 
-**Scope:** Phase 2 of 7 from `/Users/y/Apps/music/playlistize/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 2 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phase 1 scaffolding will exist by the time this phase starts (verified by Phase 1's "Done When"). The `src/domain/mod.rs` stub exists; `newtypes.rs`, `track.rs`, `camelot.rs` do not.
 
-**Project guidance:** `/Users/y/Apps/music/playlistize/implementation-plan-guidance.md`. Key rules for this phase: doc comments on every `pub` item (or merge is blocked); no `unwrap()` outside tests; pure-core rule enforced (zero `std::fs`/`tokio`/`reqwest`/adapter imports).
+**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules for this phase: doc comments on every `pub` item (or merge is blocked); no `unwrap()` outside tests; pure-core rule enforced (zero `std::fs`/`tokio`/`reqwest`/adapter imports).
 
 ---
 
@@ -43,7 +43,7 @@ SUBCOMPONENT_D: Re-exports + commit (task 7)
 ### Task 1: Implement Bpm, PitchClass, Mode, Normalized newtypes
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/src/domain/newtypes.rs`
+- Create: `/Users/y/Apps/music/order_playlist/src/domain/newtypes.rs`
 
 **Implementation:**
 
@@ -128,10 +128,10 @@ Task-implementor: use `assert_eq!` from `pretty_assertions` for nicer diffs. Use
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib domain::newtypes -- --nocapture`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib domain::newtypes -- --nocapture`
 Expected: All cases pass. Property test should run ≥ 256 cases (proptest default) without shrinking failures.
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo clippy --all-targets -- -D warnings`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo clippy --all-targets -- -D warnings`
 Expected: Clean.
 
 **Commit:** `Phase 2: domain newtypes (Bpm, PitchClass, Mode, Normalized)`
@@ -141,7 +141,7 @@ Expected: Clean.
 ### Task 2: Wire newtypes into domain/mod.rs and verify pure-core invariant
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/domain/mod.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/domain/mod.rs`
 
 **Implementation:**
 
@@ -156,7 +156,7 @@ pub use newtypes::{Bpm, DomainError, Mode, Normalized, PitchClass};
 **Pure-core enforcement.** After this task, run:
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 grep -rE "use (std::fs|tokio|reqwest|crate::adapters|crate::cli)" src/domain/
 ```
 
@@ -164,7 +164,7 @@ Expected: zero matches. If anything matches, fix the import — the FCIS rule is
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo build && cargo test --lib`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib`
 Expected: Build green; all tests still pass.
 
 **Commit:** Bundled with Task 1's commit (squash, or use `git commit --amend` if Task 1 was already committed — both files belong to the "newtypes" deliverable).
@@ -178,7 +178,7 @@ Expected: Build green; all tests still pass.
 ### Task 3: Implement TrackQuery, TrackId, Track, TrackFeatures
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/src/domain/track.rs`
+- Create: `/Users/y/Apps/music/order_playlist/src/domain/track.rs`
 
 **Implementation:**
 
@@ -199,7 +199,7 @@ Module-level doc comment explains the FCIS contract: "These types are the only t
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib domain::track`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib domain::track`
 Expected: All tests pass.
 
 **Commit:** `Phase 2: TrackQuery, TrackId, Track types`
@@ -209,7 +209,7 @@ Expected: All tests pass.
 ### Task 4: Implement TrackFeatures struct
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/domain/track.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/domain/track.rs`
 
 **Implementation:**
 
@@ -258,10 +258,10 @@ If `PartialEq` on `TrackFeatures` proves problematic (NaN, sign-of-zero), wrap e
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib domain::track`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib domain::track`
 Expected: All tests pass, including the serde round-trip.
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo clippy --all-targets -- -D warnings`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo clippy --all-targets -- -D warnings`
 Expected: Clean. (Watch for `clippy::float_cmp` on the round-trip equality test — silence with `#[allow(clippy::float_cmp)]` on the test function if necessary, and add a one-line comment explaining why bitwise equality is acceptable for serde round-trip.)
 
 **Commit:** `Phase 2: TrackFeatures with serde round-trip test`
@@ -275,7 +275,7 @@ Expected: Clean. (Watch for `clippy::float_cmp` on the round-trip equality test 
 ### Task 5: Implement Camelot mapping (CamelotLetter, CamelotCode)
 
 **Files:**
-- Create: `/Users/y/Apps/music/playlistize/src/domain/camelot.rs`
+- Create: `/Users/y/Apps/music/order_playlist/src/domain/camelot.rs`
 
 **Implementation:**
 
@@ -343,7 +343,7 @@ impl CamelotCode {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo test --lib domain::camelot`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib domain::camelot`
 Expected: 24 parameterized cases pass; bijection property holds.
 
 **Commit:** `Phase 2: Camelot mapping (PitchClass, Mode) -> CamelotCode`
@@ -353,7 +353,7 @@ Expected: 24 parameterized cases pass; bijection property holds.
 ### Task 6: Wire camelot + track modules into domain/mod.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/playlistize/src/domain/mod.rs`
+- Modify: `/Users/y/Apps/music/order_playlist/src/domain/mod.rs`
 
 **Implementation:**
 
@@ -376,12 +376,12 @@ pub use track::{Track, TrackFeatures, TrackId, TrackQuery};
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && cargo build && cargo test --lib domain`
+Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib domain`
 Expected: Build green, all domain tests pass.
 
 Re-check the pure-core rule:
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 grep -rE "use (std::fs|std::io|tokio|reqwest|crate::adapters|crate::cli)" src/domain/
 ```
 Expected: zero matches.
@@ -403,7 +403,7 @@ Expected: zero matches.
 Run the four mandatory verification commands from `implementation-plan-guidance.md`:
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
@@ -418,7 +418,7 @@ All four MUST exit 0. `cargo test` should report at least the following test cou
 If any prior task wasn't committed (e.g., Task 6 was bundled with this task), stage and commit now:
 
 ```bash
-cd /Users/y/Apps/music/playlistize
+cd /Users/y/Apps/music/order_playlist
 git add src/domain/
 git status
 git commit -m "Phase 2: wire domain module re-exports"
@@ -426,10 +426,10 @@ git commit -m "Phase 2: wire domain module re-exports"
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/playlistize && git log --oneline | head -5`
+Run: `cd /Users/y/Apps/music/order_playlist && git log --oneline | head -5`
 Expected: 3–4 new commits since Phase 1's commit, each subject starting with `Phase 2:`. (Squashing Tasks 1–2 and 5–6 into single commits is fine — what matters is each logical deliverable is a commit, not the per-task count.)
 
-Run: `cd /Users/y/Apps/music/playlistize && git status`
+Run: `cd /Users/y/Apps/music/order_playlist && git status`
 Expected: `nothing to commit, working tree clean`.
 <!-- END_TASK_7 -->
 

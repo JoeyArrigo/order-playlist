@@ -1,7 +1,7 @@
 mod support;
 
-use playlistize::adapters::{Resolution, Resolver};
-use playlistize::domain::{TrackId, TrackQuery};
+use order_playlist::adapters::{Resolution, Resolver};
+use order_playlist::domain::{TrackId, TrackQuery};
 use support::in_memory::InMemoryResolver;
 
 #[tokio::test]

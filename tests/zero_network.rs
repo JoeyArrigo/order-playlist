@@ -3,8 +3,8 @@ mod support;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-use playlistize::cli::ResolvedArgs;
-use playlistize::run::{run, ExitCode, RunDeps};
+use order_playlist::cli::ResolvedArgs;
+use order_playlist::run::{run, ExitCode, RunDeps};
 
 use support::in_memory::{PanicOnCallFeatureSource, PanicOnCallResolver};
 
@@ -29,7 +29,7 @@ async fn warm_cache_does_not_invoke_adapters() {
     };
 
     let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
-        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+        order_playlist::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
     ));
 
     // AC7.1: the panic-on-call adapters MUST NOT be invoked.
