@@ -67,11 +67,16 @@ async fn partial_unresolved_exits_zero_and_writes_sidecar() {
         verbose: 0,
         musicbrainz_contact: "test@example.com".into(),
     };
+    let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
+        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+    ));
+
     let (exit, _report) = run(
         args,
         RunDeps {
             resolver: Box::new(resolver),
             feature_source: Box::new(features),
+            cache: cache_for_run,
         },
     )
     .await
@@ -110,11 +115,16 @@ async fn all_unresolved_exits_5() {
         verbose: 0,
         musicbrainz_contact: "test@example.com".into(),
     };
+    let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
+        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+    ));
+
     let (exit, _report) = run(
         args,
         RunDeps {
             resolver: Box::new(resolver),
             feature_source: Box::new(features),
+            cache: cache_for_run,
         },
     )
     .await

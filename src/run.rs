@@ -24,20 +24,37 @@ use crate::cli::{
 use crate::domain::{Track, TrackId, TrackQuery};
 
 /// Semantic exit codes (per design).
+///
+/// Each code corresponds to a specific class of error or success condition,
+/// allowing the shell and calling processes to distinguish between different
+/// failure modes (input validation, cache problems, network issues, etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExitCode {
+    /// All tracks resolved, annealed, and written successfully.
     Success = 0,
-    Other = 1,
+    /// Invalid command-line arguments.
     BadArgs = 2,
+    /// Input file error (missing file, invalid CSV, missing columns, zero rows, etc.).
     InputError = 3,
+    /// Cache file error (corrupt, version mismatch, I/O failure).
     CacheError = 4,
+    /// No tracks could be resolved from the input.
     NothingResolved = 5,
+    /// Network requests exhausted retries (rate limited, persistent failures).
     NetworkExhausted = 6,
 }
 
+/// Dependencies required by the orchestration: a resolver, feature source, and cache.
+///
+/// These are trait objects (plus the pre-loaded cache) to allow injection of different
+/// implementations (e.g., in-memory doubles for testing, real adapters for production).
 pub struct RunDeps {
+    /// Resolves track queries to ISRCs via MusicBrainz or in-memory stubs.
     pub resolver: Box<dyn Resolver>,
+    /// Fetches audio features for resolved ISRCs via ReccoBeats or in-memory stubs.
     pub feature_source: Box<dyn FeatureSource>,
+    /// Pre-loaded cache (single instance shared by main.rs and run.rs).
+    pub cache: Arc<Mutex<Cache>>,
 }
 
 /// Diagnostic payload returned alongside an `ExitCode`. Lets `main.rs`
@@ -50,18 +67,42 @@ pub struct RunReport {
     pub message: String,
 }
 
+/// Orchestration entry point: read input → resolve → fetch features → anneal → write output.
+///
+/// This is the main orchestration function that coordinates I/O operations with the
+/// pure algorithm core. It reads the input CSV, partitions queries against the cache,
+/// resolves missing queries via the resolver, fetches features, anneals the ordering,
+/// and writes results to output files.
+///
+/// Non-fatal errors (input validation, cache problems, missing tracks) are converted to
+/// semantic exit codes and returned in the `RunReport`; fatal errors propagate as
+/// `miette::Report` via `?`.
+///
+/// # Returns
+///
+/// `Ok((exit_code, report))` on completion (whether successful or not; the exit code
+/// indicates which class of result). `Err(miette::Report)` only for truly unexpected
+/// errors that indicate a programming bug (should not happen in normal operation).
 pub async fn run(
     args: ResolvedArgs,
     deps: RunDeps,
 ) -> Result<(ExitCode, RunReport), miette::Report> {
     // 1. Read input.
-    let queries = read_input(&args.input).map_err(miette::Report::new)?;
+    let queries = match read_input(&args.input) {
+        Ok(q) => q,
+        Err(e) => {
+            return Ok((
+                ExitCode::InputError,
+                RunReport {
+                    message: e.to_string(),
+                },
+            ))
+        }
+    };
     tracing::info!(count = queries.len(), input = %args.input.display(), "loaded input");
 
-    // 2. Load cache.
-    let cache = Arc::new(Mutex::new(
-        Cache::load(&args.cache).map_err(miette::Report::new)?,
-    ));
+    // 2. Use the pre-loaded cache from RunDeps.
+    let cache = deps.cache.clone();
 
     // 3. AC7.1: Partition queries against the cache BEFORE calling the resolver.
     //    Cached "explicit failure" (empty TrackId) → goes straight to `unresolved`.
@@ -152,7 +193,14 @@ pub async fn run(
 
     // 6. Always write unresolved.csv when there's content (AC4.1 + AC4.5).
     if !unresolved.is_empty() {
-        write_unresolved(&args.unresolved, &unresolved).map_err(miette::Report::new)?;
+        if let Err(e) = write_unresolved(&args.unresolved, &unresolved) {
+            return Ok((
+                ExitCode::InputError,
+                RunReport {
+                    message: format!("failed to write unresolved.csv: {}", e),
+                },
+            ));
+        }
     }
 
     // 7. Bail out if nothing resolved (AC4.4). `main.rs` formats the message.
@@ -185,7 +233,14 @@ pub async fn run(
     let after_arc_dev = compute_arc_dev(&tracks, &ordering);
 
     // 9. Write output CSV.
-    write_output(&args.output, &ordering, &tracks).map_err(miette::Report::new)?;
+    if let Err(e) = write_output(&args.output, &ordering, &tracks) {
+        return Ok((
+            ExitCode::InputError,
+            RunReport {
+                message: format!("failed to write output CSV: {}", e),
+            },
+        ));
+    }
 
     // 10. Print chart + summary to stdout. (run.rs is permitted to write
     //     to stdout for the deliverables; only stderr error printing is

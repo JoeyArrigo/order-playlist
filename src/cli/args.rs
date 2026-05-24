@@ -6,6 +6,10 @@
 
 use std::path::PathBuf;
 
+/// Command-line arguments parsed from clap.
+///
+/// Fields with `Option` types are filled in by `Args::resolve()` with
+/// sensible defaults that may depend on other arguments.
 #[derive(clap::Parser, Debug)]
 #[command(
     name = "playlistize",
@@ -49,8 +53,11 @@ pub struct Args {
     pub musicbrainz_contact: String,
 }
 
-/// `Args` with all defaults resolved (no more `Option`s on
-/// path/seed fields). Produced by `Args::resolve`.
+/// Fully resolved command-line arguments with all defaults applied.
+///
+/// Produced by `Args::resolve()`. All `Option` fields have been replaced
+/// with concrete values, making this struct suitable for passing to the
+/// main orchestration logic.
 pub struct ResolvedArgs {
     pub input: PathBuf,
     pub output: PathBuf,
@@ -181,5 +188,20 @@ mod tests {
     fn missing_required_arg_errors() {
         let result = Args::try_parse_from(["playlistize", "--input", "in.csv"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn system_time_seed_derivation_when_not_supplied() {
+        let args =
+            Args::try_parse_from(["playlistize", "--input", "in.csv", "--output", "out.csv"])
+                .unwrap();
+        let r = args.resolve();
+
+        // AC5.4: when seed is not supplied, it should be derived from system time
+        assert!(!r.seed_was_supplied, "seed_was_supplied should be false");
+        assert!(
+            r.seed != 0,
+            "seed derived from system time should be non-zero (unless system time is 0, which is unlikely)"
+        );
     }
 }

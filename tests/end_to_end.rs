@@ -35,11 +35,16 @@ async fn end_to_end_warm_cache_produces_output() {
         musicbrainz_contact: "test@example.com".into(),
     };
 
+    let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
+        Cache::load(&dir.path().join("cache.json")).unwrap(),
+    ));
+
     let (exit, _report) = run(
         args,
         RunDeps {
             resolver: Box::new(resolver),
             feature_source: Box::new(feature_source),
+            cache: cache_for_run,
         },
     )
     .await

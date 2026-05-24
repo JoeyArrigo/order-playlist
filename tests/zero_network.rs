@@ -28,6 +28,10 @@ async fn warm_cache_does_not_invoke_adapters() {
         musicbrainz_contact: "test@example.com".into(),
     };
 
+    let cache_for_run = std::sync::Arc::new(tokio::sync::Mutex::new(
+        playlistize::adapters::Cache::load(&dir.path().join("cache.json")).unwrap(),
+    ));
+
     // AC7.1: the panic-on-call adapters MUST NOT be invoked.
     // If `run` reaches into the resolver or feature_source,
     // the panic fails the test with a clear message.
@@ -36,6 +40,7 @@ async fn warm_cache_does_not_invoke_adapters() {
         RunDeps {
             resolver: Box::new(PanicOnCallResolver),
             feature_source: Box::new(PanicOnCallFeatureSource),
+            cache: cache_for_run,
         },
     )
     .await

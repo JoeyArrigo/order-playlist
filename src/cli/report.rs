@@ -23,20 +23,41 @@ use std::path::Path;
 
 pub use crate::algo::cost::CostBreakdown;
 
+/// Inputs required to generate the summary report.
+///
+/// Bundles all the computed metrics (cost, arc deviation, per-term breakdown,
+/// clashes, resolved/unresolved counts) that are printed to stdout at the end
+/// of a successful run.
 pub struct SummaryInputs<'a> {
+    /// Number of tracks that were successfully resolved and annealed.
     pub resolved: usize,
+    /// Number of tracks that could not be resolved.
     pub unresolved: usize,
+    /// Path to the sidecar CSV containing unresolved tracks.
     pub unresolved_path: &'a Path,
+    /// RNG seed used for annealing.
     pub seed: u64,
+    /// Whether the seed was supplied via CLI or derived from system time.
     pub seed_was_supplied: bool,
+    /// Total cost of the initial ordering (before annealing).
     pub before_cost: f32,
+    /// Total cost of the final ordering (after annealing).
     pub after_cost: f32,
+    /// Arc deviation (energy arc cost) of the initial ordering.
     pub before_arc_dev: f32,
+    /// Arc deviation (energy arc cost) of the final ordering.
     pub after_arc_dev: f32,
+    /// Per-term breakdown of the final cost (arc, camelot, tempo, energy, artist).
     pub cost_breakdown: CostBreakdown,
+    /// Number of artist clashes remaining in the final ordering.
     pub remaining_clashes: usize,
 }
 
+/// Format the summary report for printing to stdout.
+///
+/// Takes the aggregated metrics from `SummaryInputs` and produces a human-readable
+/// report with before/after cost comparisons, per-term breakdowns, and diagnostics
+/// about unresolved tracks and remaining artist clashes.
 pub fn format_summary(s: &SummaryInputs<'_>) -> String {
     let mut out = String::new();
     // `write!`/`writeln!` against a `String` is infallible (the

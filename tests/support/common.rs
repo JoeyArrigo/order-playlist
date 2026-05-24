@@ -22,7 +22,7 @@ pub struct SmallPartyRun {
 /// given seed, returning paths to the produced artifacts.
 #[allow(dead_code)]
 pub async fn run_small_party_with_seed(seed: u64) -> SmallPartyRun {
-    run_small_party_with_seed_and_skip_and_window(seed, &[], 0).await
+    run_small_party_with_seed_and_skip_and_window(seed, &[], 4).await
 }
 
 /// Same as above, but force the named queries to be unresolved by
@@ -30,7 +30,7 @@ pub async fn run_small_party_with_seed(seed: u64) -> SmallPartyRun {
 /// Used by AC5.2 tests to test determinism of unresolved.csv.
 #[allow(dead_code)]
 pub async fn run_small_party_with_seed_and_skip(seed: u64, skip_titles: &[&str]) -> SmallPartyRun {
-    run_small_party_with_seed_and_skip_and_window(seed, skip_titles, 0).await
+    run_small_party_with_seed_and_skip_and_window(seed, skip_titles, 4).await
 }
 
 /// Run with custom artist_window (for AC5.3 test).
@@ -79,7 +79,7 @@ pub async fn run_small_party_with_seed_and_skip_and_window(
         input,
         output: output.clone(),
         unresolved: unresolved.clone(),
-        cache: cache_path,
+        cache: cache_path.clone(),
         seed,
         seed_was_supplied: true,
         artist_window,
@@ -87,11 +87,14 @@ pub async fn run_small_party_with_seed_and_skip_and_window(
         musicbrainz_contact: "test@example.com".into(),
     };
 
+    let cache = std::sync::Arc::new(tokio::sync::Mutex::new(Cache::load(&cache_path).unwrap()));
+
     let (exit, report) = run(
         args,
         RunDeps {
             resolver: Box::new(resolver),
             feature_source: Box::new(features),
+            cache,
         },
     )
     .await

@@ -46,17 +46,47 @@ async fn two_runs_same_seed_produce_byte_identical_unresolved() {
 
 #[tokio::test]
 async fn different_seeds_may_produce_different_orderings() {
-    // AC5.3 (edge case): the small_party fixture is constrained enough that the
-    // annealing algorithm converges to the same optimum from multiple starting points.
-    // Different seeds CAN produce different orderings on larger/less-constrained inputs,
-    // but deterministic convergence is valid behavior when the cost landscape has a
-    // single dominant minimum. We verify that the RNG actually seeded differently by
+    // AC5.3: Different seeds can produce different orderings, or they may converge
+    // to the same optimum if the cost landscape has a dominant minimum.
+    // Both behaviors are valid. We verify that the RNG seeded differently by
     // checking that runs with the same seed are always identical (AC5.1).
-    //
-    // On a larger fixture with more diversity, different seeds would produce visibly
-    // different results. This test documents the current behavior rather than enforcing
-    // a property that may not hold for all inputs.
-    let _a = run_small_party_with_seed_and_skip_and_window(1, &[], 0).await;
-    let _b = run_small_party_with_seed_and_skip_and_window(999999, &[], 0).await;
-    // Both runs complete successfully (exit code = Success), which is the real assertion.
+    // This test asserts that different seeds at least complete successfully.
+    let a = run_small_party_with_seed_and_skip_and_window(1, &[], 4).await;
+    let b = run_small_party_with_seed_and_skip_and_window(999999, &[], 4).await;
+
+    // Both runs must complete successfully
+    assert_eq!(
+        a.exit,
+        ExitCode::Success,
+        "seed=1 should complete successfully"
+    );
+    assert_eq!(
+        b.exit,
+        ExitCode::Success,
+        "seed=999999 should complete successfully"
+    );
+
+    // Both output files should exist and contain valid data (header + 10 rows)
+    let bytes_a = std::fs::read(&a.output).unwrap();
+    let bytes_b = std::fs::read(&b.output).unwrap();
+
+    assert!(!bytes_a.is_empty(), "seed=1 output should not be empty");
+    assert!(
+        !bytes_b.is_empty(),
+        "seed=999999 output should not be empty"
+    );
+
+    // Verify both have the correct number of lines
+    let lines_a: Vec<_> = std::str::from_utf8(&bytes_a).unwrap().lines().collect();
+    let lines_b: Vec<_> = std::str::from_utf8(&bytes_b).unwrap().lines().collect();
+    assert_eq!(
+        lines_a.len(),
+        11,
+        "seed=1 output should have header + 10 rows"
+    );
+    assert_eq!(
+        lines_b.len(),
+        11,
+        "seed=999999 output should have header + 10 rows"
+    );
 }
