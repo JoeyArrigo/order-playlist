@@ -9,7 +9,7 @@ Automated coverage validated: **37/37 criteria covered, 0 missing**. This plan c
 ## Prerequisites
 
 - Rust toolchain installed (`cargo --version` works).
-- Working directory: `/Users/y/Apps/music/order_playlist/`
+- Working directory: `<project-root>/`
 - Branch checked out: `playlist-arc-v1` at HEAD `5f93b60`.
 - `cargo build --release` completes without warnings.
 - `cargo test` completes with all tests passing (no `--features live-network`).

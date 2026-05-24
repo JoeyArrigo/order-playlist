@@ -6,11 +6,11 @@
 
 **Tech Stack:** Rust, `rand` + `rand_chacha` (seeded determinism), proptest (algebraic property tests), `tracing` (info on optimization progress, no warn in pure code).
 
-**Scope:** Phase 3 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 3 of 7 from `<project-root>/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phase 2's domain types will exist by the time this phase starts (`Bpm`, `PitchClass`, `Mode`, `Normalized`, `Track`, `TrackFeatures`, `CamelotCode`). `src/algo/mod.rs` exists as a stub; submodules do not.
 
-**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules for this phase (BLOCKING in code review):
+**Project guidance:** `<project-root>/implementation-plan-guidance.md`. Key rules for this phase (BLOCKING in code review):
 - "Any annealing iteration that does a full cost recompute blocks the merge."
 - "Missing unit tests on `cost.rs`, `camelot.rs`, or `anneal.rs` block the merge."
 - "Pure modules (`cost.rs`, `camelot.rs`, `anneal.rs`) must have ≥80% line coverage."
@@ -53,7 +53,7 @@ SUBCOMPONENT_E: Re-exports, full verification, commit (task 10)
 ### Task 1: Implement CamelotTable (24×24 harmonic distance lookup)
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/algo/camelot.rs`
+- Create: `<project-root>/src/algo/camelot.rs`
 
 **Implementation:**
 
@@ -114,12 +114,12 @@ impl Default for CamelotTable {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib algo::camelot`
+Run: `cd <project-root> && cargo test --lib algo::camelot`
 Expected: all unit + property tests pass.
 
 Run a coverage check (optional but recommended for this file per project guidance):
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 # If cargo-tarpaulin is installed:
 cargo tarpaulin --lib --packages order_playlist --include-files 'src/algo/camelot.rs' 2>&1 | tail -5
 ```
@@ -132,7 +132,7 @@ Expected ≥ 80% line coverage. If `cargo tarpaulin` is not installed, document 
 ### Task 2: Wire algo::camelot into algo/mod.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/mod.rs`
+- Modify: `<project-root>/src/algo/mod.rs`
 
 **Implementation:**
 
@@ -146,12 +146,12 @@ pub use camelot::CamelotTable;
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib`
+Run: `cd <project-root> && cargo build && cargo test --lib`
 Expected: green.
 
 Pure-core check:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 grep -rE "use (std::fs|std::io|tokio|reqwest|crate::adapters|crate::cli|anyhow)" src/algo/
 ```
 Expected: zero matches. (Note `anyhow` is added to the grep — the design says "no `anyhow::Result` in this module tree.")
@@ -167,7 +167,7 @@ Expected: zero matches. (Note `anyhow` is added to the grep — the design says 
 ### Task 3: Implement EnergyArc with fixed asymmetric beta-like curve peaking near position 0.68
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/algo/arc.rs`
+- Create: `<project-root>/src/algo/arc.rs`
 
 **Implementation:**
 
@@ -231,7 +231,7 @@ For `n` tracks, position `i` (0-indexed): `t = (i as f32 + 0.5) / n as f32` (mid
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib algo::arc`
+Run: `cd <project-root> && cargo test --lib algo::arc`
 Expected: all tests pass.
 
 **Commit:** `Phase 3: EnergyArc target curve with squared-deviation cost`
@@ -241,7 +241,7 @@ Expected: all tests pass.
 ### Task 4: Add EnergyArc re-export
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/mod.rs`
+- Modify: `<project-root>/src/algo/mod.rs`
 
 **Implementation:**
 
@@ -255,7 +255,7 @@ pub use camelot::CamelotTable;
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib algo`
+Run: `cd <project-root> && cargo build && cargo test --lib algo`
 Expected: green.
 
 **Commit:** Bundle with Task 3.
@@ -269,7 +269,7 @@ Expected: green.
 ### Task 5: Implement CostWeights and CostContext
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/algo/cost.rs`
+- Create: `<project-root>/src/algo/cost.rs`
 
 **Implementation:**
 
@@ -332,7 +332,7 @@ pub struct CostContext<'a> {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib algo::cost::tests`
+Run: `cd <project-root> && cargo test --lib algo::cost::tests`
 Expected: green.
 
 **Commit:** Bundle with Task 6.
@@ -342,7 +342,7 @@ Expected: green.
 ### Task 6: Implement total_cost and delta_cost
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/cost.rs`
+- Modify: `<project-root>/src/algo/cost.rs`
 
 **Implementation:**
 
@@ -438,7 +438,7 @@ Additional unit tests:
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib algo::cost`
+Run: `cd <project-root> && cargo test --lib algo::cost`
 Expected: All tests pass, including ≥ 256 proptest cases for the delta-cost property.
 
 **Commit:** `Phase 3: cost function with mandatory delta-cost (property-tested)`
@@ -448,7 +448,7 @@ Expected: All tests pass, including ≥ 256 proptest cases for the delta-cost pr
 ### Task 7: Wire algo::cost into algo/mod.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/mod.rs`
+- Modify: `<project-root>/src/algo/mod.rs`
 
 **Implementation:**
 
@@ -464,7 +464,7 @@ pub use cost::{CostContext, CostWeights};
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib algo`
+Run: `cd <project-root> && cargo build && cargo test --lib algo`
 Expected: green.
 
 **Commit:** Bundle with Task 6.
@@ -478,7 +478,7 @@ Expected: green.
 ### Task 8: Implement AnnealConfig and optimize() with seeded RNG
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/algo/anneal.rs`
+- Create: `<project-root>/src/algo/anneal.rs`
 
 **Implementation:**
 
@@ -570,12 +570,12 @@ Use `tracing::info!` exactly **twice** in this function: once at start (with the
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib algo::anneal`
+Run: `cd <project-root> && cargo test --lib algo::anneal`
 Expected: all tests pass. Smoke test takes < 1 s wall clock; full suite < 10 s.
 
 Run a performance sanity check (recommended by `implementation-plan-guidance.md`):
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo test --release --lib algo::anneal::tests::perf_sanity -- --nocapture
 ```
 Expected: 1000 SA iterations on a 40-track playlist completes in under 100 ms.
@@ -606,7 +606,7 @@ fn perf_sanity_1000_iter_40_track_under_100ms() {
 ### Task 9: Add artist-spacing property test (AC3.5)
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/anneal.rs`
+- Modify: `<project-root>/src/algo/anneal.rs`
 
 **Implementation:**
 
@@ -659,7 +659,7 @@ Limit `cases: 8` because each annealing run takes ~100 ms in release mode; 8 cas
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --release --lib algo::anneal::tests::artist_spacing_respected_default_window`
+Run: `cd <project-root> && cargo test --release --lib algo::anneal::tests::artist_spacing_respected_default_window`
 Expected: passes 8 cases without shrinking failures.
 
 (Run in `--release` because debug-mode SA is too slow for the test.)
@@ -675,7 +675,7 @@ Expected: passes 8 cases without shrinking failures.
 ### Task 10: Re-exports, full verification, commit
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/mod.rs`
+- Modify: `<project-root>/src/algo/mod.rs`
 
 **Implementation:**
 
@@ -701,7 +701,7 @@ pub use cost::{CostContext, CostWeights};
 Final verification suite:
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
@@ -711,7 +711,7 @@ cargo build --release
 
 Pure-core gate:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 grep -rE "use (std::fs|std::io|tokio|reqwest|crate::adapters|crate::cli|anyhow)" src/algo/
 ```
 Expected: zero matches.
@@ -727,10 +727,10 @@ git commit -m "Phase 3: algo module re-exports + final verification"
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && git status`
+Run: `cd <project-root> && git status`
 Expected: `nothing to commit, working tree clean`.
 
-Run: `cd /Users/y/Apps/music/order_playlist && git log --oneline | head -10`
+Run: `cd <project-root> && git log --oneline | head -10`
 Expected: Multiple commits since Phase 2 wrap, each starting `Phase 3:`.
 <!-- END_TASK_10 -->
 

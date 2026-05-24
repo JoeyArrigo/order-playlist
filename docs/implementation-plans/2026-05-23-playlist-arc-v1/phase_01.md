@@ -6,11 +6,11 @@
 
 **Tech Stack:** Rust (edition 2021), Cargo, tokio, reqwest (rustls-tls), serde, clap, miette, thiserror, tracing.
 
-**Scope:** Phase 1 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 1 of 7 from `<project-root>/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — greenfield. No `Cargo.toml`, no `src/`, no `tests/`. Branch `playlist-arc-v1` checked out. `cargo 1.61.0` / `rustc 1.61.0` present (may need rustup upgrade — note in Task 1 verification).
 
-**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules: no `unwrap()` outside tests/`main`; missing doc comments on `pub` items block merge; cargo fmt + clippy + test + build must all pass at end of every phase.
+**Project guidance:** `<project-root>/implementation-plan-guidance.md`. Key rules: no `unwrap()` outside tests/`main`; missing doc comments on `pub` items block merge; cargo fmt + clippy + test + build must all pass at end of every phase.
 
 ---
 
@@ -43,7 +43,7 @@ SUBCOMPONENT_D: Commit (task 7)
 ### Task 1: Initialize Cargo manifest with pinned dependencies and feature flags
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/Cargo.toml`
+- Create: `<project-root>/Cargo.toml`
 
 **Implementation:**
 
@@ -98,16 +98,16 @@ codegen-units = 1
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo --version`
+Run: `cd <project-root> && cargo --version`
 Expected: A version ≥ 1.75 (edition 2021 features used in later phases). If the local toolchain reports < 1.75, run `rustup update stable` before continuing. If `rustup` is not installed, install it from https://rustup.rs and re-run.
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo metadata --offline 2>&1 | head -5`
+Run: `cd <project-root> && cargo metadata --offline 2>&1 | head -5`
 Expected: Errors gracefully OR shows metadata. Either is acceptable — this just confirms `Cargo.toml` parses.
 
 **MANDATORY pin verification before `cargo build`.** The `rand = "=0.10.0"` and `rand_chacha = "=0.10.0"` versions in the manifest above were derived from speculative research; they may not exist on crates.io. Before `cargo build`, run:
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo search rand --limit 1
 cargo search rand_chacha --limit 1
 ```
@@ -121,8 +121,8 @@ Each prints the latest version available. If `=0.10.0` doesn't match, edit `Carg
 ### Task 2: Update .gitignore and add .env.example
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/.gitignore` (existing — 4 lines)
-- Create: `/Users/y/Apps/music/order_playlist/.env.example`
+- Modify: `<project-root>/.gitignore` (existing — 4 lines)
+- Create: `<project-root>/.env.example`
 
 **Implementation:**
 
@@ -163,10 +163,10 @@ Create `.env.example`:
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cat .gitignore | grep -E 'target|cache\.json|\.env|DS_Store|snap\.new'`
+Run: `cd <project-root> && cat .gitignore | grep -E 'target|cache\.json|\.env|DS_Store|snap\.new'`
 Expected: All five patterns present.
 
-Run: `cd /Users/y/Apps/music/order_playlist && test -f .env.example && echo OK`
+Run: `cd <project-root> && test -f .env.example && echo OK`
 Expected: `OK`.
 
 **No commit yet.**
@@ -180,9 +180,9 @@ Expected: `OK`.
 ### Task 3: Create src/main.rs, src/lib.rs, and errors.rs placeholders
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/main.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/lib.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/errors.rs`
+- Create: `<project-root>/src/main.rs`
+- Create: `<project-root>/src/lib.rs`
+- Create: `<project-root>/src/errors.rs`
 
 **Implementation:**
 
@@ -227,7 +227,7 @@ pub mod errors;
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo check 2>&1 | tail -20`
+Run: `cd <project-root> && cargo check 2>&1 | tail -20`
 Expected: Compiles cleanly OR errors only about missing `adapters/algo/cli/domain` modules (those are created in Task 4). No syntax errors in the three files above.
 
 **No commit yet.**
@@ -237,10 +237,10 @@ Expected: Compiles cleanly OR errors only about missing `adapters/algo/cli/domai
 ### Task 4: Create empty module skeletons for domain, algo, adapters, cli
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/domain/mod.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/algo/mod.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/cli/mod.rs`
+- Create: `<project-root>/src/domain/mod.rs`
+- Create: `<project-root>/src/algo/mod.rs`
+- Create: `<project-root>/src/adapters/mod.rs`
+- Create: `<project-root>/src/cli/mod.rs`
 
 **Implementation:**
 
@@ -296,10 +296,10 @@ Each `mod.rs` is a re-export file only. Real submodules land in later phases. Ea
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build 2>&1 | tail -10`
+Run: `cd <project-root> && cargo build 2>&1 | tail -10`
 Expected: `Compiling order_playlist v0.1.0 ...` followed by `Finished ...`. Zero errors, zero warnings.
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test 2>&1 | tail -10`
+Run: `cd <project-root> && cargo test 2>&1 | tail -10`
 Expected: Compiles and runs `0 passed; 0 failed`.
 
 **No commit yet.**
@@ -326,7 +326,7 @@ In Phase 1 every feature combination is behaviorally identical because no featur
 Run each, in order. Each must finish with `Finished ...` and zero warnings.
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo build
 cargo build --no-default-features --features musicbrainz,reccobeats
 cargo build --features live-network
@@ -336,7 +336,7 @@ cargo build --no-default-features
 Then:
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 ```
@@ -359,10 +359,10 @@ If `cargo fmt --check` reports diffs, run `cargo fmt` and re-verify.
 
 **Implementation:**
 
-Run the verification commands listed in `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md` ("What 'done' looks like per phase"):
+Run the verification commands listed in `<project-root>/implementation-plan-guidance.md` ("What 'done' looks like per phase"):
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
@@ -390,7 +390,7 @@ If `cargo build --release` is slow on first run (release profile uses `lto = "th
 Stage the new files explicitly — do NOT use `git add .` (project rule per Claude Code defaults: avoid accidentally staging `.env` or other untracked secrets).
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 
 git add Cargo.toml
 git add .gitignore
@@ -415,15 +415,15 @@ If the executor is configured to add a Co-Authored-By trailer, include it; other
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && git log --oneline -1`
+Run: `cd <project-root> && git log --oneline -1`
 Expected: A new commit on `playlist-arc-v1` whose subject begins `Phase 1:`.
 
-Run: `cd /Users/y/Apps/music/order_playlist && git status`
+Run: `cd <project-root> && git status`
 Expected: `nothing to commit, working tree clean`.
 
 Run one more full verification pass to confirm the committed state is green:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo build && cargo test && cargo clippy --all-targets -- -D warnings
 ```
 All three exit 0.

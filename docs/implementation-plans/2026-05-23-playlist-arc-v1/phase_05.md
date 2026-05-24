@@ -6,7 +6,7 @@
 
 **Tech Stack:** Rust, `reqwest` (json + rustls-tls), `tokio` (Interval, async), `serde` (JSON response models), `tracing` (info on every network call per AC9.2), `miette::Diagnostic` (user-facing errors).
 
-**Scope:** Phase 5 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 5 of 7 from `<project-root>/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phase 4's `Cache`, `TrackQuery`, `TrackId` will exist. `src/adapters/mod.rs` re-exports those types. Neither `Resolver` trait nor `musicbrainz.rs` exists yet.
 
@@ -18,7 +18,7 @@
 - `User-Agent` header **required**: format `AppName/Version (contact-info)`. Missing or generic UAs are aggressively throttled.
 - Lucene escapes needed: `+ - && || ! ( ) { } [ ] ^ " ~ * ? : \ /`
 
-**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules: no `unwrap()` outside tests/`main`; new `pub` items need doc comments; "Spotify adapter has mocked tests only" — applies here as "MusicBrainz adapter has mocked tests only" by extension. AC9.2: `tracing::info!` on every network call with structured fields.
+**Project guidance:** `<project-root>/implementation-plan-guidance.md`. Key rules: no `unwrap()` outside tests/`main`; new `pub` items need doc comments; "Spotify adapter has mocked tests only" — applies here as "MusicBrainz adapter has mocked tests only" by extension. AC9.2: `tracing::info!` on every network call with structured fields.
 
 ---
 
@@ -59,8 +59,8 @@ SUBCOMPONENT_C: Live-network smoke test + module wiring (tasks 7-8)
 ### Task 1: Define Resolver trait + Resolution enum in adapters/mod.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/adapters/musicbrainz.rs` (stub — full impl in Tasks 4–5)
+- Modify: `<project-root>/src/adapters/mod.rs`
+- Create: `<project-root>/src/adapters/musicbrainz.rs` (stub — full impl in Tasks 4–5)
 
 **Implementation:**
 
@@ -118,10 +118,10 @@ The trait uses `async_trait` because Rust's native async-in-traits, while stabil
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build`
+Run: `cd <project-root> && cargo build`
 Expected: green. Adding `async-trait` shouldn't break anything.
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build --features musicbrainz`
+Run: `cd <project-root> && cargo build --features musicbrainz`
 Expected: green — the empty `musicbrainz.rs` stub satisfies the `pub mod musicbrainz;` declaration even before Task 4 fills it in.
 
 **Commit:** `Phase 5: Resolver trait + Resolution enum + async-trait dep + musicbrainz module stub`
@@ -131,7 +131,7 @@ Expected: green — the empty `musicbrainz.rs` stub satisfies the `pub mod music
 ### Task 2: Define MusicBrainzError + AdapterError in errors.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/errors.rs`
+- Modify: `<project-root>/src/errors.rs`
 
 **Implementation:**
 
@@ -182,7 +182,7 @@ The `source` is `Option<reqwest::Error>` because `NoCandidates` doesn't have an 
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib errors`
+Run: `cd <project-root> && cargo build && cargo test --lib errors`
 Expected: green.
 
 **Commit:** `Phase 5: MusicBrainzError + AdapterError with miette diagnostics`
@@ -192,8 +192,8 @@ Expected: green.
 ### Task 3: Create InMemoryResolver test double in tests/support/
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/support/mod.rs`
-- Create: `/Users/y/Apps/music/order_playlist/tests/support/in_memory.rs`
+- Create: `<project-root>/tests/support/mod.rs`
+- Create: `<project-root>/tests/support/in_memory.rs`
 
 **Implementation:**
 
@@ -294,7 +294,7 @@ async fn in_memory_resolver_returns_unresolved_for_missing() {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test in_memory_resolver_smoke`
+Run: `cd <project-root> && cargo test --test in_memory_resolver_smoke`
 Expected: both tests pass.
 
 **Commit:** `Phase 5: InMemoryResolver + PanicOnCallResolver test doubles`
@@ -308,7 +308,7 @@ Expected: both tests pass.
 ### Task 4: Implement Lucene escape + query construction
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/adapters/musicbrainz.rs`
+- Create: `<project-root>/src/adapters/musicbrainz.rs`
 
 **Implementation:**
 
@@ -428,7 +428,7 @@ fn studio_disambiguations_kept(disamb: &str) {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --features musicbrainz --lib adapters::musicbrainz::tests`
+Run: `cd <project-root> && cargo test --features musicbrainz --lib adapters::musicbrainz::tests`
 Expected: all pass.
 
 **Commit:** `Phase 5: MusicBrainz URL builders + Lucene escaping`
@@ -438,7 +438,7 @@ Expected: all pass.
 ### Task 5: Implement MusicBrainzIsrcResolver struct + JSON response models + Resolver impl
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/musicbrainz.rs`
+- Modify: `<project-root>/src/adapters/musicbrainz.rs`
 
 **Implementation:**
 
@@ -677,10 +677,10 @@ impl Resolver for MusicBrainzIsrcResolver {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build --features musicbrainz`
+Run: `cd <project-root> && cargo build --features musicbrainz`
 Expected: green.
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --features musicbrainz --lib adapters::musicbrainz`
+Run: `cd <project-root> && cargo test --features musicbrainz --lib adapters::musicbrainz`
 Expected: helper tests pass (live-HTTP test is in Task 7).
 
 **Commit:** `Phase 5: MusicBrainzIsrcResolver with read-through cache + explicit-failure sentinel`
@@ -690,8 +690,8 @@ Expected: helper tests pass (live-HTTP test is in Task 7).
 ### Task 6: Add a mock-server test for the search → lookup pipeline
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/musicbrainz.rs`
-- Modify: `/Users/y/Apps/music/order_playlist/Cargo.toml` (add `wiremock = "=0.6.4"` to `[dev-dependencies]`)
+- Modify: `<project-root>/src/adapters/musicbrainz.rs`
+- Modify: `<project-root>/Cargo.toml` (add `wiremock = "=0.6.4"` to `[dev-dependencies]`)
 
 **Implementation:**
 
@@ -829,7 +829,7 @@ mod integration_tests {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --features musicbrainz --lib adapters::musicbrainz`
+Run: `cd <project-root> && cargo test --features musicbrainz --lib adapters::musicbrainz`
 Expected: all unit + wiremock tests pass. Total runtime < 10s.
 
 **Commit:** `Phase 5: wiremock integration tests for MusicBrainz happy path + filter + 503`
@@ -843,7 +843,7 @@ Expected: all unit + wiremock tests pass. Total runtime < 10s.
 ### Task 7: Add live-network smoke test (feature-gated)
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/musicbrainz_live.rs`
+- Create: `<project-root>/tests/musicbrainz_live.rs`
 
 **Implementation:**
 
@@ -901,13 +901,13 @@ When the user runs `cargo test --features live-network`, this test runs and eith
 
 Without the feature:
 ```bash
-cd /Users/y/Apps/music/order_playlist && cargo test --test musicbrainz_live 2>&1 | head -5
+cd <project-root> && cargo test --test musicbrainz_live 2>&1 | head -5
 ```
 Expected: builds with zero tests in this file (the cfg excludes everything).
 
 With the feature (network required):
 ```bash
-cd /Users/y/Apps/music/order_playlist && cargo test --features musicbrainz,live-network --test musicbrainz_live 2>&1 | tail -10
+cd <project-root> && cargo test --features musicbrainz,live-network --test musicbrainz_live 2>&1 | tail -10
 ```
 Expected: passes when the network reaches musicbrainz.org. If offline, test fails with a clear reqwest error.
 
@@ -918,7 +918,7 @@ Expected: passes when the network reaches musicbrainz.org. If offline, test fail
 ### Task 8: Re-export, full verification, commit
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/mod.rs`
+- Modify: `<project-root>/src/adapters/mod.rs`
 
 **Implementation:**
 
@@ -932,7 +932,7 @@ pub use musicbrainz::MusicBrainzIsrcResolver;
 Final verification:
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets --features musicbrainz -- -D warnings
 cargo test --features musicbrainz
@@ -943,14 +943,14 @@ All four exit 0.
 
 Additional gate (AC8 surface):
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo build --no-default-features --features musicbrainz
 ```
 Expected: builds (the `reccobeats` adapter isn't here yet, but `no-default-features --features musicbrainz` should produce a binary that has only the MusicBrainz resolver and no ReccoBeats — verification of AC8.3's path comes in Phase 6+7).
 
 **Commit:** Bundle if needed:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 git add src/adapters/ Cargo.toml Cargo.lock
 git status
 git commit -m "Phase 5: re-export MusicBrainzIsrcResolver; full verification"

@@ -6,11 +6,11 @@
 
 **Tech Stack:** Rust, `clap` (derive), `tracing-subscriber` (env-filter + fmt), `miette` (panic hook + fancy renderer), `insta` (snapshot tests), `tokio` (async runtime).
 
-**Scope:** Phase 7 of 7 from `/Users/y/Apps/music/order_playlist/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
+**Scope:** Phase 7 of 7 from `<project-root>/docs/design-plans/2026-05-23-playlist-arc-v1.md`.
 
 **Codebase verified:** 2026-05-23 — Phases 1–6 will be in place: domain types, pure algo, IO adapters, both resolver/feature-source implementations, in-memory test doubles. `src/cli/mod.rs` exists as a stub; `args.rs`, `chart.rs`, `report.rs` do not. `src/main.rs` is a `fn main() {}` stub from Phase 1.
 
-**Project guidance:** `/Users/y/Apps/music/order_playlist/implementation-plan-guidance.md`. Key rules for this phase: integration test on a 10-song CSV running end-to-end through cached path; AC9.3 miette panic hook in `main.rs`; AC9.1 hermetic default `cargo test`; AC9.2 `tracing::info!` on network calls (verified by adapter phases, re-checked here).
+**Project guidance:** `<project-root>/implementation-plan-guidance.md`. Key rules for this phase: integration test on a 10-song CSV running end-to-end through cached path; AC9.3 miette panic hook in `main.rs`; AC9.1 hermetic default `cargo test`; AC9.2 `tracing::info!` on network calls (verified by adapter phases, re-checked here).
 
 ---
 
@@ -84,7 +84,7 @@ SUBCOMPONENT_E: CI matrix + final verification (task 11)
 ### Task 1: Implement clap Args struct in src/cli/args.rs
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/src/cli/args.rs`
+- Create: `<project-root>/src/cli/args.rs`
 
 **Implementation:**
 
@@ -248,7 +248,7 @@ mod tests {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib cli::args`
+Run: `cd <project-root> && cargo test --lib cli::args`
 Expected: all pass.
 
 **Commit:** `Phase 7: clap Args with ResolvedArgs default-resolution`
@@ -258,7 +258,7 @@ Expected: all pass.
 ### Task 2: Wire cli/mod.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/cli/mod.rs`
+- Modify: `<project-root>/src/cli/mod.rs`
 
 **Implementation:**
 
@@ -288,7 +288,7 @@ pub use report::format_summary;
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build`
+Run: `cd <project-root> && cargo build`
 Expected: green.
 
 **Commit:** Bundle with Task 1.
@@ -302,7 +302,7 @@ Expected: green.
 ### Task 3: Implement render_arc — ASCII chart of energy vs position
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/cli/chart.rs`
+- Modify: `<project-root>/src/cli/chart.rs`
 
 **Implementation:**
 
@@ -443,7 +443,7 @@ First run will fail (no snapshots yet). Run `cargo insta review` to accept the n
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib cli::chart`
+Run: `cd <project-root> && cargo test --lib cli::chart`
 Expected: snapshot tests pass after `cargo insta accept`.
 
 **Commit:** `Phase 7: ASCII energy-arc chart with insta snapshot tests`
@@ -453,7 +453,7 @@ Expected: snapshot tests pass after `cargo insta accept`.
 ### Task 4: Implement format_summary — resolved/unresolved counts + cost breakdown
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/cli/report.rs`
+- Modify: `<project-root>/src/cli/report.rs`
 
 **Implementation:**
 
@@ -618,7 +618,7 @@ mod tests {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --lib cli::report`
+Run: `cd <project-root> && cargo test --lib cli::report`
 Expected: tests pass after `cargo insta accept`.
 
 **Commit:** `Phase 7: summary report formatter with insta snapshot`
@@ -632,7 +632,7 @@ Expected: tests pass after `cargo insta accept`.
 ### Task 4a: Promote `CostContext::cost_breakdown` to Phase 3's algo/cost.rs (cross-phase additive change)
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/algo/cost.rs`
+- Modify: `<project-root>/src/algo/cost.rs`
 
 **Implementation:**
 
@@ -702,7 +702,7 @@ proptest! {
 
 Re-run Phase 3's verification gates after the addition:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --lib algo::cost
@@ -717,7 +717,7 @@ All exit 0. The new proptest runs ≥ 256 cases. `delta_cost_equals_total_cost_d
 ### Task 4b: Promote `Cache::all_resolutions` and `Cache::all_features` to Phase 4's adapters/cache.rs (cross-phase additive change)
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/adapters/cache.rs`
+- Modify: `<project-root>/src/adapters/cache.rs`
 
 **Implementation:**
 
@@ -764,7 +764,7 @@ fn all_resolutions_and_all_features_round_trip() {
 
 Re-run Phase 4's verification gates:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --lib adapters::cache
@@ -779,7 +779,7 @@ All exit 0.
 ### Task 4c: Wire the moved CostBreakdown re-export in cli/report.rs
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/cli/report.rs`
+- Modify: `<project-root>/src/cli/report.rs`
 
 **Implementation:**
 
@@ -796,7 +796,7 @@ Delete the local `pub struct CostBreakdown { ... }` from `cli/report.rs` (added 
 
 Re-run cli/report tests to ensure the snapshot still matches:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo test --lib cli::report
 ```
 Expected: snapshot passes unchanged.
@@ -808,8 +808,8 @@ Expected: snapshot passes unchanged.
 ### Task 5: Implement run() function in lib.rs as the orchestration entry point (with cache-partition for AC7.1)
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/lib.rs`
-- Create: `/Users/y/Apps/music/order_playlist/src/run.rs`
+- Modify: `<project-root>/src/lib.rs`
+- Create: `<project-root>/src/run.rs`
 
 **Implementation:**
 
@@ -1028,7 +1028,7 @@ Tested via the integration tests in Tasks 7–10 — `run.rs` is the seam they e
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build && cargo test --lib`
+Run: `cd <project-root> && cargo build && cargo test --lib`
 Expected: builds and all unit tests pass. The orchestration's correctness is verified by Tasks 7–10's integration tests, which run after this task.
 
 **Commit:** `Phase 7: run() orchestration with cache-partition for AC7.1, RunReport, and ctx.cost_breakdown plumbing`
@@ -1038,7 +1038,7 @@ Expected: builds and all unit tests pass. The orchestration's correctness is ver
 ### Task 6: Implement main.rs — panic hook, tracing-subscriber, deps wiring, exit codes
 
 **Files:**
-- Modify: `/Users/y/Apps/music/order_playlist/src/main.rs`
+- Modify: `<project-root>/src/main.rs`
 
 **Implementation:**
 
@@ -1133,7 +1133,7 @@ The `#[cfg(...)]` blocks ensure AC8.3 holds: when both features are absent, the 
 Manual smoke test (run in shell, not part of `cargo test`):
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 
 # Create a tiny 3-song fixture.
 mkdir -p data
@@ -1155,15 +1155,15 @@ cargo build --release --no-default-features
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build --release`
+Run: `cd <project-root> && cargo build --release`
 Expected: green.
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo build --release --no-default-features`
+Run: `cd <project-root> && cargo build --release --no-default-features`
 Expected: green; binary at `target/release/order_playlist` exists.
 
 Run the bare-bones binary:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 ./target/release/order_playlist --input /tmp/anything.csv --output /tmp/out.csv 2>&1 | head -5
 ```
 Expected: error message containing "no resolver/feature source compiled in".
@@ -1179,9 +1179,9 @@ Expected: error message containing "no resolver/feature source compiled in".
 ### Task 7: End-to-end test with in-memory adapters and pre-warmed cache
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/fixtures/small_party.csv`
-- Create: `/Users/y/Apps/music/order_playlist/tests/fixtures/small_party.cache.json`
-- Create: `/Users/y/Apps/music/order_playlist/tests/end_to_end.rs`
+- Create: `<project-root>/tests/fixtures/small_party.csv`
+- Create: `<project-root>/tests/fixtures/small_party.cache.json`
+- Create: `<project-root>/tests/end_to_end.rs`
 
 **Implementation:**
 
@@ -1268,7 +1268,7 @@ fn main() {
 
 Run once locally and commit the generated `small_party.cache.json`:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo run --bin build_small_party_cache
 git add tests/fixtures/small_party.cache.json
 ```
@@ -1279,7 +1279,7 @@ The generator is itself a committed artifact (under `tests/fixtures/`) so the fi
 
 After running `cargo run --bin build_small_party_cache`:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 test -f tests/fixtures/small_party.cache.json
 jq '.version' tests/fixtures/small_party.cache.json  # expect 1
 jq '.resolutions | length' tests/fixtures/small_party.cache.json  # expect 10
@@ -1355,7 +1355,7 @@ async fn build_features_from_cache(cache_path: &std::path::Path) -> InMemoryFeat
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test end_to_end`
+Run: `cd <project-root> && cargo test --test end_to_end`
 Expected: passes; output CSV has the expected header and 10 data rows.
 
 **Commit:** `Phase 7: end-to-end test against small_party fixture with warm cache`
@@ -1365,9 +1365,9 @@ Expected: passes; output CSV has the expected header and 10 data rows.
 ### Task 8: Determinism test — two runs produce byte-identical output
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/support/common.rs`
-- Modify: `/Users/y/Apps/music/order_playlist/tests/support/mod.rs` (add `pub mod common;`)
-- Create: `/Users/y/Apps/music/order_playlist/tests/determinism.rs`
+- Create: `<project-root>/tests/support/common.rs`
+- Modify: `<project-root>/tests/support/mod.rs` (add `pub mod common;`)
+- Create: `<project-root>/tests/determinism.rs`
 
 **Implementation:**
 
@@ -1496,7 +1496,7 @@ No `todo!()` anywhere — the helper does the actual work.
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test determinism`
+Run: `cd <project-root> && cargo test --test determinism`
 Expected: three tests pass.
 
 **Commit:** `Phase 7: determinism integration tests (AC5.1, AC5.2, AC5.3)`
@@ -1506,8 +1506,8 @@ Expected: three tests pass.
 ### Task 9: Unresolved-tracks test (AC4)
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/fixtures/with_bad_rows.csv`
-- Create: `/Users/y/Apps/music/order_playlist/tests/unresolved.rs`
+- Create: `<project-root>/tests/fixtures/with_bad_rows.csv`
+- Create: `<project-root>/tests/unresolved.rs`
 
 **Implementation:**
 
@@ -1615,7 +1615,7 @@ async fn all_unresolved_exits_5() {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test unresolved`
+Run: `cd <project-root> && cargo test --test unresolved`
 Expected: both tests pass.
 
 **Commit:** `Phase 7: unresolved sidecar + exit-5 integration tests (AC4)`
@@ -1625,7 +1625,7 @@ Expected: both tests pass.
 ### Task 10: Zero-network test with PanicOnCall* doubles (AC7.1)
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/tests/zero_network.rs`
+- Create: `<project-root>/tests/zero_network.rs`
 
 **Implementation:**
 
@@ -1673,12 +1673,12 @@ async fn warm_cache_does_not_invoke_adapters() {
 
 **Verification:**
 
-Run: `cd /Users/y/Apps/music/order_playlist && cargo test --test zero_network`
+Run: `cd <project-root> && cargo test --test zero_network`
 Expected: passes. The `PanicOnCall*` doubles never panic, proving the warm-cache path skips adapter calls entirely.
 
 Run the full integration suite after this task to make sure nothing regressed:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo test --test determinism --test end_to_end --test unresolved --test zero_network
 ```
 Expected: all pass.
@@ -1694,7 +1694,7 @@ Expected: all pass.
 ### Task 11: CI workflow + final verification + commit
 
 **Files:**
-- Create: `/Users/y/Apps/music/order_playlist/.github/workflows/ci.yml`
+- Create: `<project-root>/.github/workflows/ci.yml`
 
 **Implementation:**
 
@@ -1744,7 +1744,7 @@ The matrix entry `"--no-default-features"` proves AC8.3 — the build succeeds; 
 Final verification (run locally before pushing):
 
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo clippy --all-targets --no-default-features --features musicbrainz,reccobeats -- -D warnings
@@ -1758,7 +1758,7 @@ All seven exit 0.
 
 Hermetic test gate (AC9.1):
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 # Run tests with network blocked at the OS level — they should all pass.
 # On macOS, the easiest proxy is to check that no test imports `reqwest`
 # in a non-mocked code path. The wiremock tests use reqwest but only
@@ -1769,7 +1769,7 @@ Expected: all tests pass, none gate behind `LIVE_NETWORK` env var.
 
 **Commit:** Final:
 ```bash
-cd /Users/y/Apps/music/order_playlist
+cd <project-root>
 git add .github/ src/ tests/ Cargo.toml Cargo.lock
 git status
 git commit -m "Phase 7: CI matrix + final verification suite"
