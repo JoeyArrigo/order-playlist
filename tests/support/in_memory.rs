@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use order_playlist::adapters::{FeatureSource, Resolution, Resolver};
+use order_playlist::adapters::{FeatureOutcome, FeatureSource, Resolution, Resolver};
 use order_playlist::domain::{TrackFeatures, TrackId, TrackQuery};
 
 /// In-memory resolver for testing.
@@ -81,9 +81,15 @@ impl InMemoryFeatureSource {
 
 #[async_trait::async_trait]
 impl FeatureSource for InMemoryFeatureSource {
-    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)> {
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, FeatureOutcome)> {
         ids.iter()
-            .map(|id| (id.clone(), self.map.get(id).cloned()))
+            .map(|id| {
+                let outcome = match self.map.get(id) {
+                    Some(f) => FeatureOutcome::Found(f.clone()),
+                    None => FeatureOutcome::NotFound,
+                };
+                (id.clone(), outcome)
+            })
             .collect()
     }
 }
@@ -97,7 +103,37 @@ pub struct PanicOnCallFeatureSource;
 
 #[async_trait::async_trait]
 impl FeatureSource for PanicOnCallFeatureSource {
-    async fn features_for(&self, _ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)> {
+    async fn features_for(&self, _ids: &[TrackId]) -> Vec<(TrackId, FeatureOutcome)> {
         panic!("PanicOnCallFeatureSource was invoked — warm cache should bypass this");
+    }
+}
+
+/// Resolver that always reports `Resolution::ExhaustedRetries`.
+///
+/// Models a provider that is rate-limited for every query in the batch, so
+/// orchestration can be tested against the `ExitCode::NetworkExhausted` path.
+#[allow(dead_code)]
+pub struct ExhaustingResolver;
+
+#[async_trait::async_trait]
+impl Resolver for ExhaustingResolver {
+    async fn resolve_many(&self, queries: &[TrackQuery]) -> Vec<Resolution> {
+        queries
+            .iter()
+            .map(|q| Resolution::ExhaustedRetries { query: q.clone() })
+            .collect()
+    }
+}
+
+/// Feature source that always reports `FeatureOutcome::ExhaustedRetries`.
+#[allow(dead_code)]
+pub struct ExhaustingFeatureSource;
+
+#[async_trait::async_trait]
+impl FeatureSource for ExhaustingFeatureSource {
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, FeatureOutcome)> {
+        ids.iter()
+            .map(|id| (id.clone(), FeatureOutcome::ExhaustedRetries))
+            .collect()
     }
 }

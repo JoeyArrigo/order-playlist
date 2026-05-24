@@ -383,10 +383,17 @@ impl Resolver for MusicBrainzIsrcResolver {
                         "unresolved: error"
                     );
                     // Do NOT cache transient errors — re-attempt on next run.
-                    out.push(Resolution::Unresolved {
-                        query: q.clone(),
-                        reason: format!("musicbrainz error: {:?}", e.kind),
-                    });
+                    match e.kind {
+                        MusicBrainzErrorKind::RateLimit => {
+                            out.push(Resolution::ExhaustedRetries { query: q.clone() });
+                        }
+                        _ => {
+                            out.push(Resolution::Unresolved {
+                                query: q.clone(),
+                                reason: format!("musicbrainz error: {:?}", e.kind),
+                            });
+                        }
+                    }
                 }
             }
         }

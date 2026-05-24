@@ -1,6 +1,6 @@
 mod support;
 
-use order_playlist::adapters::FeatureSource;
+use order_playlist::adapters::{FeatureOutcome, FeatureSource};
 use order_playlist::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId};
 use support::in_memory::InMemoryFeatureSource;
 
@@ -24,6 +24,8 @@ async fn in_memory_features_returns_known() {
     let result = src.features_for(std::slice::from_ref(&id)).await;
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].0, id);
-    assert!(result[0].1.is_some());
-    assert_eq!(result[0].1.as_ref().unwrap().tempo.get(), 120.0);
+    match &result[0].1 {
+        FeatureOutcome::Found(features) => assert_eq!(features.tempo.get(), 120.0),
+        other => panic!("expected Found, got {:?}", other),
+    }
 }

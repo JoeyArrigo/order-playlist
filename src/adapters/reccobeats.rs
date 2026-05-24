@@ -4,8 +4,11 @@
 //!
 //! Resolves track IDs (ISRCs) to their audio features via the ReccoBeats API.
 //!
-//! Single surface exposed: `FeatureSource::features_for(&[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)>`.
-//! Cache read-through filters un-cached IDs before any network call.
+//! Single surface exposed: `FeatureSource::features_for(&[TrackId]) -> Vec<(TrackId, FeatureOutcome)>`.
+//! Cache read-through filters un-cached IDs before any network call. A batch
+//! that exhausts its 429 retries yields `FeatureOutcome::ExhaustedRetries`
+//! for every ID in that batch, which orchestration maps to
+//! `ExitCode::NetworkExhausted`.
 //!
 //! ## API shape (verified via Task 1 spike)
 //!
@@ -25,7 +28,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-use crate::adapters::{Cache, FeatureSource};
+use crate::adapters::{Cache, FeatureOutcome, FeatureSource};
 use crate::domain::{Bpm, Mode, Normalized, PitchClass, TrackFeatures, TrackId};
 use crate::errors::{ReccoBeatsError, ReccoBeatsErrorKind};
 
@@ -222,18 +225,20 @@ pub(crate) fn match_item_to_id<'a>(item: &FeatureItem, ids: &'a [TrackId]) -> Op
 
 #[async_trait::async_trait]
 impl FeatureSource for ReccoBeatsFeatures {
-    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)> {
-        let mut output: Vec<(TrackId, Option<TrackFeatures>)> = Vec::with_capacity(ids.len());
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, FeatureOutcome)> {
+        let mut output: Vec<(TrackId, FeatureOutcome)> = Vec::with_capacity(ids.len());
         let mut to_fetch: Vec<TrackId> = Vec::new();
 
-        // Cache read-through.
+        // Cache read-through. Default outcome for un-cached IDs is `NotFound`;
+        // upgraded to `Found` on successful batch backfill, or replaced with
+        // `ExhaustedRetries` if the owning batch exhausts its 429 retries.
         {
             let cache = self.cache.lock().await;
             for id in ids {
                 if let Some(features) = cache.get_features(id) {
-                    output.push((id.clone(), Some(features.clone())));
+                    output.push((id.clone(), FeatureOutcome::Found(features.clone())));
                 } else {
-                    output.push((id.clone(), None));
+                    output.push((id.clone(), FeatureOutcome::NotFound));
                     to_fetch.push(id.clone());
                 }
             }
@@ -257,9 +262,8 @@ impl FeatureSource for ReccoBeatsFeatures {
                         if let Some(id) = match_item_to_id(item, batch) {
                             let features = item_to_features(item);
                             cache.put_features(id.clone(), features.clone());
-                            // Backfill the output slot for this id.
                             if let Some(slot) = output.iter_mut().find(|(o_id, _)| o_id == id) {
-                                slot.1 = Some(features);
+                                slot.1 = FeatureOutcome::Found(features);
                             }
                         } else {
                             tracing::warn!(
@@ -272,13 +276,26 @@ impl FeatureSource for ReccoBeatsFeatures {
                     }
                 }
                 Err(e) => {
+                    let is_throttled = matches!(e.kind, ReccoBeatsErrorKind::Throttled);
                     tracing::warn!(
                         error_kind = ?e.kind,
                         ids = ?e.ids,
-                        "reccobeats batch failed; leaving as None"
+                        is_throttled,
+                        "reccobeats batch failed"
                     );
-                    // Do NOT cache failure. Output slots stay None;
-                    // Phase 7 orchestration will emit them as unresolved.
+                    // Throttled exhaustion → propagate as ExhaustedRetries so
+                    // run() can map to ExitCode::NetworkExhausted. Other error
+                    // kinds (Network, Parse) leave NotFound in place since they
+                    // are not retry-exhaustion in the rate-limit sense.
+                    if is_throttled {
+                        for id in batch {
+                            if let Some(slot) = output.iter_mut().find(|(o_id, _)| o_id == id) {
+                                if matches!(slot.1, FeatureOutcome::NotFound) {
+                                    slot.1 = FeatureOutcome::ExhaustedRetries;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -547,14 +564,17 @@ mod integration_tests {
         let result = src.features_for(&ids).await;
         assert_eq!(result.len(), 2, "should return two results");
         assert!(
-            result.iter().all(|(_, f)| f.is_some()),
+            result
+                .iter()
+                .all(|(_, f)| matches!(f, FeatureOutcome::Found(_))),
             "both should have features"
         );
-        assert_eq!(
-            result[0].1.as_ref().unwrap().tempo.get(),
-            116.0,
-            "first should have correct tempo"
-        );
+        match &result[0].1 {
+            FeatureOutcome::Found(f) => {
+                assert_eq!(f.tempo.get(), 116.0, "first should have correct tempo");
+            }
+            other => panic!("expected Found, got {:?}", other),
+        }
     }
 
     #[tokio::test]
@@ -572,7 +592,10 @@ mod integration_tests {
         let src = ReccoBeatsFeatures::new_with_base(cache, format!("{}/v1", mock.uri())).unwrap();
         let ids = vec![TrackId::new("USQX91300120")];
         let result = src.features_for(&ids).await;
-        assert!(result[0].1.is_some(), "cached ID should return Some");
+        assert!(
+            matches!(result[0].1, FeatureOutcome::Found(_)),
+            "cached ID should return Found"
+        );
     }
 
     #[tokio::test]
@@ -600,11 +623,14 @@ mod integration_tests {
         src.retry_attempts = 1;
         let ids = vec![TrackId::new("USQX91300120")];
         let result = src.features_for(&ids).await;
-        assert!(result[0].1.is_some(), "expected feature after retry on 429");
+        assert!(
+            matches!(result[0].1, FeatureOutcome::Found(_)),
+            "expected feature after retry on 429"
+        );
     }
 
     #[tokio::test]
-    async fn unmatchable_id_remains_none() {
+    async fn unmatchable_id_remains_not_found() {
         let mock = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/v1/audio-features"))
@@ -617,6 +643,29 @@ mod integration_tests {
         let src = make_features(&mock).await;
         let ids = vec![TrackId::new("ZZZZ99999999")];
         let result = src.features_for(&ids).await;
-        assert!(result[0].1.is_none(), "unmatched ID should remain None");
+        assert!(
+            matches!(result[0].1, FeatureOutcome::NotFound),
+            "unmatched ID should remain NotFound"
+        );
+    }
+
+    #[tokio::test]
+    async fn persistent_429_yields_exhausted_retries() {
+        let mock = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v1/audio-features"))
+            .respond_with(ResponseTemplate::new(429))
+            .mount(&mock)
+            .await;
+
+        let mut src = make_features(&mock).await;
+        src.retry_attempts = 1;
+        let ids = vec![TrackId::new("USQX91300120")];
+        let result = src.features_for(&ids).await;
+        assert!(
+            matches!(result[0].1, FeatureOutcome::ExhaustedRetries),
+            "persistent 429 should yield ExhaustedRetries, got {:?}",
+            result[0].1,
+        );
     }
 }

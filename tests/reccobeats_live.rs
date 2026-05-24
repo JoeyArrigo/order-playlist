@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use order_playlist::adapters::{Cache, FeatureSource, ReccoBeatsFeatures};
+use order_playlist::adapters::{Cache, FeatureOutcome, FeatureSource, ReccoBeatsFeatures};
 use order_playlist::domain::TrackId;
 
 #[tokio::test]
@@ -20,10 +20,16 @@ async fn fetches_features_for_known_isrc() {
     assert_eq!(result.len(), 1);
 
     match &result[0].1 {
-        Some(features) => {
+        FeatureOutcome::Found(features) => {
             assert!(features.tempo.get() > 0.0);
             assert!(features.energy.get() >= 0.0 && features.energy.get() <= 1.0);
         }
-        None => panic!("expected features for known ISRC; ReccoBeats may have changed behavior — re-run Task 1 spike"),
+        FeatureOutcome::NotFound => panic!(
+            "expected features for known ISRC; ReccoBeats may have changed behavior — re-run Task 1 spike"
+        ),
+        FeatureOutcome::ExhaustedRetries => panic!(
+            "ReccoBeats rate-limited the live test for {} — try again later",
+            id.get()
+        ),
     }
 }

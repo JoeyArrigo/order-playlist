@@ -29,6 +29,21 @@ pub use musicbrainz::MusicBrainzIsrcResolver;
 #[cfg(feature = "reccobeats")]
 pub use reccobeats::ReccoBeatsFeatures;
 
+/// Outcome of fetching audio features for a single `TrackId`.
+///
+/// `ExhaustedRetries` is distinct from `NotFound` so orchestration can map
+/// adapter rate-limit exhaustion to `ExitCode::NetworkExhausted` rather than
+/// silently treating it as a missing feature.
+#[derive(Debug, Clone)]
+pub enum FeatureOutcome {
+    /// Features were fetched (or cache-hit) successfully.
+    Found(TrackFeatures),
+    /// The ID was not found by the provider (semantic miss, do not retry).
+    NotFound,
+    /// Retries were exhausted (e.g., persistent HTTP 429). Transient failure.
+    ExhaustedRetries,
+}
+
 /// Resolves track IDs to their audio features.
 ///
 /// Implementations must:
@@ -39,21 +54,25 @@ pub use reccobeats::ReccoBeatsFeatures;
 pub trait FeatureSource: Send + Sync {
     /// Resolve multiple track IDs to their audio features.
     ///
-    /// Returns a vec of `(id, Option<features>)` tuples. Order must match input order.
-    /// `None` indicates the ID could not be resolved (not found, transient error, etc.).
-    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, Option<TrackFeatures>)>;
+    /// Returns a vec of `(id, outcome)` tuples. Order must match input order.
+    async fn features_for(&self, ids: &[TrackId]) -> Vec<(TrackId, FeatureOutcome)>;
 }
 
 /// Outcome of resolving a single `TrackQuery`.
 ///
-/// Each query is mapped to either a successful resolution with an ID, or an
-/// unresolved state with a human-readable reason.
+/// `ExhaustedRetries` is distinct from `Unresolved` so orchestration can map
+/// adapter rate-limit exhaustion to `ExitCode::NetworkExhausted` rather than
+/// silently treating it as a semantic miss.
 #[derive(Debug, Clone)]
 pub enum Resolution {
     /// The query was successfully resolved to a track ID.
     Resolved { query: TrackQuery, id: TrackId },
-    /// The query could not be resolved.
+    /// The query could not be resolved for a semantic reason (no candidates,
+    /// cached prior failure). Do not retry.
     Unresolved { query: TrackQuery, reason: String },
+    /// Adapter exhausted retries on this query (e.g., persistent HTTP 429/503).
+    /// Transient failure; safe to retry on a future run.
+    ExhaustedRetries { query: TrackQuery },
 }
 
 /// Resolves a batch of `TrackQuery`s into IDs (ISRC for v1's

@@ -38,5 +38,11 @@ async fn resolves_get_lucky_to_isrc() {
         Resolution::Unresolved { reason, .. } => {
             panic!("expected Resolved, got Unresolved: {}", reason);
         }
+        Resolution::ExhaustedRetries { query } => {
+            panic!(
+                "expected Resolved but MusicBrainz rate-limited the live test for {:?}",
+                query
+            );
+        }
     }
 }

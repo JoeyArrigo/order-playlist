@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::adapters::{read_input, write_output, write_unresolved, Unresolved};
-use crate::adapters::{Cache, FeatureSource, Resolution, Resolver};
+use crate::adapters::{Cache, FeatureOutcome, FeatureSource, Resolution, Resolver};
 use crate::algo::{optimize, AnnealConfig, CamelotTable, CostContext, CostWeights, EnergyArc};
 use crate::cli::{
     format_summary, render_arc,
@@ -128,6 +128,11 @@ pub async fn run(
         }
     }
 
+    // Tracks whether any adapter signalled retry exhaustion. Used at the end
+    // to map `tracks.is_empty()` to `NetworkExhausted` instead of
+    // `NothingResolved` when the cause is transient rate-limiting.
+    let mut network_exhausted = false;
+
     if !to_resolve.is_empty() {
         for r in deps.resolver.resolve_many(&to_resolve).await {
             match r {
@@ -135,6 +140,18 @@ pub async fn run(
                 Resolution::Unresolved { query, reason } => {
                     tracing::warn!(title = %query.title, artist = %query.artist, %reason, "unresolved");
                     unresolved.push(Unresolved { query, reason });
+                }
+                Resolution::ExhaustedRetries { query } => {
+                    network_exhausted = true;
+                    tracing::warn!(
+                        title = %query.title,
+                        artist = %query.artist,
+                        "unresolved: resolver exhausted retries"
+                    );
+                    unresolved.push(Unresolved {
+                        query,
+                        reason: "resolver exhausted retries (rate limited)".into(),
+                    });
                 }
             }
         }
@@ -165,18 +182,26 @@ pub async fn run(
     if !to_fetch.is_empty() {
         let fetched = deps.feature_source.features_for(&to_fetch).await;
         // `fetched` is in the same order as `to_fetch`; zip with `pending`.
-        for ((q, id), (_, feat)) in pending.into_iter().zip(fetched) {
-            match feat {
-                Some(f) => tracks.push(Track {
+        for ((q, id), (_, outcome)) in pending.into_iter().zip(fetched) {
+            match outcome {
+                FeatureOutcome::Found(f) => tracks.push(Track {
                     query: q,
                     id,
                     features: f,
                 }),
-                None => {
-                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature lookup returned None");
+                FeatureOutcome::NotFound => {
+                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature lookup returned NotFound");
                     unresolved.push(Unresolved {
                         query: q,
-                        reason: "feature lookup returned None".into(),
+                        reason: "feature lookup returned NotFound".into(),
+                    });
+                }
+                FeatureOutcome::ExhaustedRetries => {
+                    network_exhausted = true;
+                    tracing::warn!(title = %q.title, artist = %q.artist, "unresolved: feature source exhausted retries");
+                    unresolved.push(Unresolved {
+                        query: q,
+                        reason: "feature source exhausted retries (rate limited)".into(),
                     });
                 }
             }
@@ -203,14 +228,23 @@ pub async fn run(
         }
     }
 
-    // 7. Bail out if nothing resolved (AC4.4). `main.rs` formats the message.
+    // 7. Bail out if nothing resolved. When at least one adapter exhausted
+    //    retries, report that as the more specific cause (`NetworkExhausted`,
+    //    exit 6) so the user knows to retry later rather than fix their input.
     if tracks.is_empty() {
-        return Ok((
-            ExitCode::NothingResolved,
-            RunReport {
-                message: "no tracks resolved; nothing to anneal".into(),
-            },
-        ));
+        let (code, message) = if network_exhausted {
+            (
+                ExitCode::NetworkExhausted,
+                "no tracks resolved; provider rate-limited and exhausted retries (retry later)"
+                    .to_string(),
+            )
+        } else {
+            (
+                ExitCode::NothingResolved,
+                "no tracks resolved; nothing to anneal".to_string(),
+            )
+        };
+        return Ok((code, RunReport { message }));
     }
 
     // 8. Anneal.

@@ -1,6 +1,6 @@
 # order_playlist
 
-Last verified: 2026-05-24
+Last verified: 2026-05-24 (NetworkExhausted exit-code wiring + FeatureOutcome enum)
 
 Rust binary crate that reorders a CSV playlist along a target energy arc.
 This file captures the cross-cutting architectural rules that aren't
@@ -78,6 +78,15 @@ Pattern for adding a new provider: add a feature flag, add a
 `#[cfg(feature = "...")] pub mod ...;` and matching `pub use` in
 `src/adapters/mod.rs`, and implement the `Resolver` or `FeatureSource`
 trait. Nothing in `algo/` or `domain/` should change.
+
+When implementing those traits, distinguish *semantic* failures from
+*transient* failures: emit `Resolution::Unresolved` /
+`FeatureOutcome::NotFound` when the provider has answered "no such
+thing," and `Resolution::ExhaustedRetries` /
+`FeatureOutcome::ExhaustedRetries` when the provider rate-limited or
+otherwise gave up. `run()` aggregates the latter into
+`ExitCode::NetworkExhausted` so the user is told to retry rather than
+fix their input.
 
 When `--no-default-features` is built, `main.rs`'s `build_deps()` returns
 an error (`AC8.3`) — the binary still compiles and runs, it just refuses
